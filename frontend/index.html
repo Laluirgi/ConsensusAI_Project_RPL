@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Consensus AI</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0f0f0f;
+            --surface: #1a1a1a;
+            --border: #2a2a2a;
+            --muted: #3a3a3a;
+            --text: #e8e8e8;
+            --sub: #888;
+            --accent: #c8f261;
+            --agent-a: #7dd3fc;
+            --agent-c: #fbbf24;
+            --agent-d: #f472b6;
+            --agent-j: #6ee7b7;
+            --radius: 10px;
+            --font: 'Inter', system-ui, sans-serif;
+            --mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            height: 100vh;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-top {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .logo-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+        }
+
+        .new-chat-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--sub);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: border-color 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+
+        .new-chat-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .section-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--sub);
+            padding: 12px 16px 6px;
+        }
+
+        /* History list */
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 8px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.12s;
+            min-width: 0;
+        }
+
+        .history-item:hover {
+            background: var(--border);
+        }
+
+        .history-item.active {
+            background: rgba(200, 242, 97, 0.07);
+        }
+
+        .history-icon {
+            font-size: 13px;
+            flex-shrink: 0;
+            color: var(--sub);
+        }
+
+        .history-text {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .history-title {
+            font-size: 12px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item.active .history-title {
+            color: var(--accent);
+        }
+
+        .history-meta {
+            font-size: 11px;
+            color: var(--sub);
+        }
+
+        .history-del {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: none;
+            background: transparent;
+            color: var(--sub);
+            cursor: pointer;
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .history-item:hover .history-del {
+            display: flex;
+        }
+
+        .history-del:hover {
+            color: #f87171;
+        }
+
+        .history-empty {
+            padding: 20px 16px;
+            font-size: 12px;
+            color: var(--sub);
+            text-align: center;
+            line-height: 1.7;
+        }
+
+        /* ── Main ── */
+        .main {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .topbar {
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .topbar-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--sub);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+        }
+
+        .status-pill {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--sub);
+            font-family: var(--mono);
+            flex-shrink: 0;
+        }
+
+        .status-pill.running {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Toggle */
+        .toggle-wrap {
+            padding: 8px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .toggle-label {
+            font-size: 12px;
+            color: var(--sub);
+        }
+
+        .toggle {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-track {
+            position: absolute;
+            inset: 0;
+            background: var(--muted);
+            border-radius: 18px;
+            transition: background 0.2s;
+        }
+
+        .toggle input:checked~.toggle-track {
+            background: var(--accent);
+        }
+
+        .toggle-thumb {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            transition: left 0.2s;
+        }
+
+        .toggle input:checked~.toggle-thumb {
+            left: 16px;
+        }
+
+        /* Chat area */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .empty {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--sub);
+        }
+
+        .empty-icon {
+            font-size: 28px;
+            opacity: 0.35;
+        }
+
+        .empty p {
+            font-size: 13px;
+            text-align: center;
+            max-width: 220px;
+            line-height: 1.7;
+        }
+
+        /* Bubbles */
+        .bubble {
+            max-width: 680px;
+            width: 100%;
+        }
+
+        .bubble.user {
+            align-self: flex-end;
+        }
+
+        .bubble-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .bubble-name {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .bubble-round {
+            font-size: 11px;
+            color: var(--sub);
+            font-family: var(--mono);
+        }
+
+        .bubble-body {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--surface);
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre-wrap;
+        }
+
+        .bubble.user .bubble-body {
+            background: var(--muted);
+            border-color: var(--muted);
+            border-radius: var(--radius) var(--radius) 4px var(--radius);
+        }
+
+        .bubble.answerer .bubble-name {
+            color: var(--agent-a);
+        }
+
+        .bubble.answerer .bubble-body {
+            border-left: 2px solid var(--agent-a);
+        }
+
+        .bubble.critic .bubble-name {
+            color: var(--agent-c);
+        }
+
+        .bubble.critic .bubble-body {
+            border-left: 2px solid var(--agent-c);
+        }
+
+        .bubble.devil .bubble-name {
+            color: var(--agent-d);
+        }
+
+        .bubble.devil .bubble-body {
+            border-left: 2px solid var(--agent-d);
+        }
+
+        .bubble.judge .bubble-name {
+            color: var(--agent-j);
+        }
+
+        .bubble.judge .bubble-body {
+            border-left: 2px solid var(--agent-j);
+        }
+
+        .consensus-wrap {
+            max-width: 680px;
+            width: 100%;
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            background: rgba(200, 242, 97, 0.04);
+        }
+
+        .consensus-header {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .consensus-body {
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--text);
+            white-space: pre-wrap;
+        }
+
+        .thinking {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            max-width: 260px;
+            font-size: 13px;
+            color: var(--sub);
+        }
+
+        .dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .dots span {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--sub);
+            animation: bounce 1.2s infinite;
+        }
+
+        .dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: translateY(0);
+                opacity: 0.4
+            }
+
+            40% {
+                transform: translateY(-4px);
+                opacity: 1
+            }
+        }
+
+        /* ── Input area ── */
+        .input-area {
+            padding: 12px 24px 16px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            transition: border-color 0.15s;
+        }
+
+        .input-row:focus-within {
+            border-color: var(--muted);
+        }
+
+        textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: var(--font);
+            font-size: 14px;
+            color: var(--text);
+            line-height: 1.6;
+            max-height: 120px;
+            min-height: 22px;
+        }
+
+        textarea::placeholder {
+            color: var(--sub);
+        }
+
+        .send-btn {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent);
+            color: #0f0f0f;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.15s;
+        }
+
+        .send-btn:hover {
+            opacity: 0.85;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+
+
+
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--muted);
+            border-radius: 2px;
+        }
+
+        .debate-hidden .bubble:not(.user) {
+            display: none;
+        }
+
+        .debate-hidden .consensus-wrap {
+            display: flex;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(6px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .fade-in {
+            animation: fadeUp 0.2s ease forwards;
+        }
+
+        /* ── Sidebar bottom ── */
+        .sidebar-bottom {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .settings-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--sub);
+            font-size: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .settings-btn:hover {
+            border-color: var(--muted);
+            color: var(--text);
+        }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            width: 520px;
+            max-width: 95vw;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .modal-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .modal-close {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--sub);
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .setting-section {
+            padding: 18px 20px;
+        }
+
+        .setting-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--sub);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .setting-desc code {
+            font-family: var(--mono);
+            background: var(--border);
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+
+        .setting-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 0;
+        }
+
+        /* Model grid */
+        .setting-model-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .setting-model-card {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            position: relative;
+        }
+
+        .setting-model-card:hover {
+            border-color: var(--muted);
+        }
+
+        .setting-model-card.active {
+            border-color: var(--accent);
+            background: rgba(200, 242, 97, 0.05);
+        }
+
+        .smc-check {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .smc-name {
+            font-size: 13px;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .smc-tag {
+            font-size: 11px;
+            color: var(--sub);
+            font-family: var(--mono);
+        }
+
+        /* Rounds */
+        .setting-rounds-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .setting-rounds-row input[type=range] {
+            -webkit-appearance: none;
+            flex: 1;
+            height: 2px;
+            background: var(--muted);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .setting-rounds-row input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        .setting-rounds-val {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            font-family: var(--mono);
+            min-width: 14px;
+        }
+
+        .setting-rounds-hint {
+            font-size: 11px;
+            color: var(--sub);
+        }
+
+        /* Role toggle */
+        .setting-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .setting-toggle-label {
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        /* Manual role list */
+        .role-manual-desc {
+            font-size: 11px;
+            color: var(--sub);
+            margin-bottom: 8px;
+        }
+
+        .role-manual-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .role-manual-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+        }
+
+        .rmi-drag {
+            color: var(--sub);
+            font-size: 13px;
+            cursor: grab;
+        }
+
+        .rmi-model {
+            font-size: 13px;
+            color: var(--text);
+            flex: 1;
+        }
+
+        .rmi-role {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--sub);
+        }
+
+        .rmi-role-select {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 12px;
+            padding: 3px 6px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* Prompt tabs */
+        .prompt-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .prompt-tab {
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--sub);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.12s;
+        }
+
+        .prompt-tab:hover {
+            border-color: var(--muted);
+            color: var(--text);
+        }
+
+        .prompt-tab.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(200, 242, 97, 0.06);
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 12px;
+            padding: 10px 12px;
+            resize: vertical;
+            outline: none;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .prompt-textarea:focus {
+            border-color: var(--muted);
+        }
+
+        .reset-prompt-btn {
+            font-size: 11px;
+            color: var(--sub);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .reset-prompt-btn:hover {
+            color: var(--text);
+        }
+
+        /* Lang */
+        .lang-options {
+            display: flex;
+            gap: 8px;
+        }
+
+        .lang-opt {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--sub);
+            cursor: pointer;
+            transition: all 0.12s;
+        }
+
+        .lang-opt:hover {
+            border-color: var(--muted);
+            color: var(--text);
+        }
+
+        .lang-opt.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(200, 242, 97, 0.06);
+        }
+
+        /* Modal footer */
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-save {
+            padding: 7px 20px;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent);
+            color: #0f0f0f;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-save:hover {
+            opacity: 0.85;
+        }
+
+        .btn-cancel {
+            padding: 7px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--sub);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--muted);
+            color: var(--text);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- ── Sidebar ── -->
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="logo">
+                    <div class="logo-dot"></div>
+                    Consensus
+                </div>
+                <button class="new-chat-btn" onclick="newChat()" title="Chat baru">+</button>
+            </div>
+
+            <div class="section-label">Riwayat Chat</div>
+
+            <div class="history-list" id="historyList">
+                <div class="history-empty" id="historyEmpty">Belum ada riwayat.<br>Mulai chat pertamamu!</div>
+            </div>
+
+            <div class="sidebar-bottom">
+                <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
+            </div>
+        </aside>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)">
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">Settings</span>
+                    <button class="modal-close" onclick="closeSettings()">✕</button>
+                </div>
+                <div class="modal-body">
+
+                    <!-- Models -->
+                    <div class="setting-section">
+                        <div class="setting-section-title">Model Agent</div>
+                        <div class="setting-desc">Pilih minimal 2 model yang ikut berdebat.</div>
+                        <div class="setting-model-grid" id="settingModelGrid">
+                            <div class="setting-model-card active" data-model="llama"
+                                onclick="toggleSettingModel(this)">
+                                <div class="smc-check" id="smc-check-llama">✓</div>
+                                <div class="smc-name">LLaMA 3.3</div>
+                                <div class="smc-tag">Groq · Gratis</div>
+                            </div>
+                            <div class="setting-model-card active" data-model="gemini"
+                                onclick="toggleSettingModel(this)">
+                                <div class="smc-check" id="smc-check-gemini">✓</div>
+                                <div class="smc-name">Gemini Flash</div>
+                                <div class="smc-tag">Google · Gratis</div>
+                            </div>
+                            <div class="setting-model-card" data-model="mixtral" onclick="toggleSettingModel(this)">
+                                <div class="smc-check" id="smc-check-mixtral"></div>
+                                <div class="smc-name">Mixtral 8x7B</div>
+                                <div class="smc-tag">Groq · Gratis</div>
+                            </div>
+                            <div class="setting-model-card" data-model="kimi" onclick="toggleSettingModel(this)">
+                                <div class="smc-check" id="smc-check-kimi"></div>
+                                <div class="smc-name">Kimi K2</div>
+                                <div class="smc-tag">Moonshot · Murah</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-divider"></div>
+
+                    <!-- Iterasi -->
+                    <div class="setting-section">
+                        <div class="setting-section-title">Iterasi Debat</div>
+                        <div class="setting-desc">Jumlah putaran debat antar agent sebelum konsensus dibuat.</div>
+                        <div class="setting-rounds-row">
+                            <input type="range" min="1" max="4" value="2" id="settingRounds"
+                                oninput="updateRoundsHint(this.value)">
+                            <span class="setting-rounds-val" id="settingRoundsVal">2</span>
+                        </div>
+                        <div class="setting-rounds-hint" id="settingRoundsHint">Balance antara kecepatan & kedalaman
+                        </div>
+                    </div>
+
+                    <div class="setting-divider"></div>
+
+                    <!-- Role Assignment -->
+                    <div class="setting-section">
+                        <div class="setting-section-title">Role Assignment</div>
+                        <div class="setting-desc">Tentukan role tiap agent secara manual atau otomatis.</div>
+                        <div class="setting-toggle-row">
+                            <span class="setting-toggle-label">Auto assign role</span>
+                            <label class="toggle">
+                                <input type="checkbox" id="autoRole" checked onchange="toggleRoleMode()">
+                                <div class="toggle-track"></div>
+                                <div class="toggle-thumb"></div>
+                            </label>
+                        </div>
+                        <div class="role-manual" id="roleManual" style="display:none;">
+                            <div class="role-manual-desc">Urutan dari atas = Answerer → Critic → Devil's Advocate →
+                                Judge.</div>
+                            <div class="role-manual-list" id="roleManualList"></div>
+                        </div>
+                    </div>
+
+                    <div class="setting-divider"></div>
+
+                    <!-- System Prompt -->
+                    <div class="setting-section">
+                        <div class="setting-section-title">System Prompt per Role</div>
+                        <div class="setting-desc">Kustomisasi instruksi tiap role. <code>{model}</code> diganti nama
+                            model otomatis.</div>
+                        <div class="prompt-tabs" id="promptTabs">
+                            <button class="prompt-tab active" data-role="answerer"
+                                onclick="switchPromptTab(this)">Answerer</button>
+                            <button class="prompt-tab" data-role="critic"
+                                onclick="switchPromptTab(this)">Critic</button>
+                            <button class="prompt-tab" data-role="devil" onclick="switchPromptTab(this)">Devil's
+                                Adv.</button>
+                            <button class="prompt-tab" data-role="judge" onclick="switchPromptTab(this)">Judge</button>
+                        </div>
+                        <textarea class="prompt-textarea" id="promptTextarea" rows="4"
+                            oninput="savePrompt()"></textarea>
+                        <button class="reset-prompt-btn" onclick="resetPrompt()">↺ Reset default</button>
+                    </div>
+
+                    <div class="setting-divider"></div>
+
+                    <!-- Bahasa -->
+                    <div class="setting-section">
+                        <div class="setting-section-title">Bahasa Output</div>
+                        <div class="setting-desc">Bahasa yang digunakan agent saat menjawab.</div>
+                        <div class="lang-options">
+                            <div class="lang-opt active" data-lang="id" onclick="selectLang(this)">🇮🇩 Indonesia</div>
+                            <div class="lang-opt" data-lang="en" onclick="selectLang(this)">🇬🇧 English</div>
+                            <div class="lang-opt" data-lang="auto" onclick="selectLang(this)">⚡ Auto</div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-save" onclick="saveSettings()">Simpan</button>
+                    <button class="btn-cancel" onclick="closeSettings()">Batal</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Main ── -->
+        <main class="main">
+
+            <div class="topbar">
+                <span class="topbar-title" id="topbarTitle">Chat baru</span>
+                <span class="status-pill" id="statusPill">idle</span>
+            </div>
+
+            <div class="toggle-wrap">
+                <label class="toggle">
+                    <input type="checkbox" id="showDebate" checked onchange="toggleDebateView()">
+                    <div class="toggle-track"></div>
+                    <div class="toggle-thumb"></div>
+                </label>
+                <span class="toggle-label">Tampilkan proses debat</span>
+            </div>
+
+            <div class="chat-area" id="chatArea">
+                <div class="empty" id="emptyState">
+                    <div class="empty-icon">◎</div>
+                    <p>Pilih model di bawah, lalu ketik pertanyaan untuk memulai debat.</p>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="input-area">
+                <div class="input-row">
+                    <textarea id="questionInput" placeholder="Ketik pertanyaan..." rows="1" onkeydown="handleKey(event)"
+                        oninput="autoResize(this)"></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="startDebate()">↑</button>
+                </div>
+
+
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // ── Models config ──
+        const MODELS = {
+            llama: { name: 'LLaMA 3.3', tag: 'Groq' },
+            gemini: { name: 'Gemini Flash', tag: 'Google' },
+            mixtral: { name: 'Mixtral 8x7B', tag: 'Groq' },
+            kimi: { name: 'Kimi K2', tag: 'Moonshot' },
+        };
+        const ROLES = ['answerer', 'critic', 'devil', 'judge'];
+        const ROLE_LABELS = ['Answerer', 'Critic', "Devil's Advocate", 'Judge'];
+
+        let selectedModels = ['llama', 'gemini'];
+        let isRunning = false;
+
+        // ── Chat history state ──
+        // [ { id, title, messages: [ {type, role, name, content, round, totalRounds} ] } ]
+        let chatHistory = [];
+        let activeChatId = null;
+
+        // ── Chip toggle ──
+        function toggleChip(el) {
+            const model = el.dataset.model;
+            const idx = selectedModels.indexOf(model);
+            if (idx > -1) {
+                if (selectedModels.length <= 2) return;
+                selectedModels.splice(idx, 1);
+                el.classList.remove('active');
+            } else {
+                selectedModels.push(model);
+                el.classList.add('active');
+            }
+        }
+
+        // ── Debate view toggle ──
+        function toggleDebateView() {
+            document.getElementById('chatArea').classList.toggle(
+                'debate-hidden', !document.getElementById('showDebate').checked
+            );
+        }
+
+        // ── Textarea ──
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+        function handleKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startDebate(); }
+        }
+
+        // ── New chat ──
+        function newChat() {
+            activeChatId = null;
+            document.getElementById('chatArea').innerHTML =
+                `<div class="empty" id="emptyState">
+       <div class="empty-icon">◎</div>
+       <p>Pilih model di bawah, lalu ketik pertanyaan untuk memulai debat.</p>
+     </div>`;
+            document.getElementById('topbarTitle').textContent = 'Chat baru';
+            renderHistory();
+        }
+
+        // ── Load chat from history ──
+        function loadChat(id) {
+            const chat = chatHistory.find(c => c.id === id);
+            if (!chat) return;
+            activeChatId = id;
+            document.getElementById('topbarTitle').textContent = chat.title;
+
+            const area = document.getElementById('chatArea');
+            area.innerHTML = '';
+            for (const msg of chat.messages) {
+                if (msg.type === 'user') renderUserBubble(msg.content, false);
+                else if (msg.type === 'agent') renderAgentBubble(msg.role, msg.name, msg.content, msg.round, msg.totalRounds, false);
+                else if (msg.type === 'consensus') renderConsensus(msg.content, false);
+            }
+            area.scrollTop = area.scrollHeight;
+            renderHistory();
+        }
+
+        // ── Delete chat ──
+        function deleteChat(e, id) {
+            e.stopPropagation();
+            chatHistory = chatHistory.filter(c => c.id !== id);
+            if (activeChatId === id) newChat();
+            else renderHistory();
+        }
+
+        // ── Render sidebar history ──
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            const empty = document.getElementById('historyEmpty');
+
+            // Remove old items (keep empty placeholder)
+            list.querySelectorAll('.history-item').forEach(el => el.remove());
+
+            if (chatHistory.length === 0) {
+                if (!document.getElementById('historyEmpty')) {
+                    list.innerHTML = '<div class="history-empty" id="historyEmpty">Belum ada riwayat.<br>Mulai chat pertamamu!</div>';
+                }
+                return;
+            }
+
+            // Hide empty msg
+            const emp = document.getElementById('historyEmpty');
+            if (emp) emp.style.display = 'none';
+
+            // Render newest first
+            [...chatHistory].reverse().forEach(chat => {
+                const div = document.createElement('div');
+                div.className = 'history-item' + (chat.id === activeChatId ? ' active' : '');
+                div.onclick = () => loadChat(chat.id);
+                div.innerHTML = `
+      <span class="history-icon">◎</span>
+      <div class="history-text">
+        <div class="history-title">${escHtml(chat.title)}</div>
+        <div class="history-meta">${chat.date} · ${chat.models.join(', ')}</div>
+      </div>
+      <button class="history-del" onclick="deleteChat(event,'${chat.id}')" title="Hapus">✕</button>`;
+                list.appendChild(div);
+            });
+        }
+
+        // ── Helpers: render ──
+        function clearEmpty() {
+            const e = document.getElementById('emptyState');
+            if (e) e.remove();
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function renderUserBubble(content, append = true) {
+            const area = document.getElementById('chatArea');
+            const div = document.createElement('div');
+            div.className = 'bubble user fade-in';
+            div.innerHTML = `<div class="bubble-body">${escHtml(content)}</div>`;
+            area.appendChild(div);
+            if (append) area.scrollTop = area.scrollHeight;
+            return div;
+        }
+
+        function renderAgentBubble(role, name, content, round, totalRounds, append = true) {
+            const area = document.getElementById('chatArea');
+            const div = document.createElement('div');
+            div.className = `bubble ${role} fade-in`;
+            div.innerHTML = `
+    <div class="bubble-meta">
+      <span class="bubble-name">${escHtml(name)}</span>
+      ${round ? `<span class="bubble-round">ronde ${round}/${totalRounds}</span>` : ''}
+    </div>
+    <div class="bubble-body">${escHtml(content)}</div>`;
+            area.appendChild(div);
+            if (append) area.scrollTop = area.scrollHeight;
+            return div;
+        }
+
+        function renderConsensus(content, append = true) {
+            const area = document.getElementById('chatArea');
+            const div = document.createElement('div');
+            div.className = 'consensus-wrap fade-in';
+            div.innerHTML = `
+    <div class="consensus-header">◎ Konsensus Final</div>
+    <div class="consensus-body">${escHtml(content)}</div>`;
+            area.appendChild(div);
+            if (append) area.scrollTop = area.scrollHeight;
+        }
+
+        function appendThinking(name) {
+            const area = document.getElementById('chatArea');
+            const div = document.createElement('div');
+            div.className = 'thinking fade-in';
+            div.innerHTML = `<div class="dots"><span></span><span></span><span></span></div><span>${escHtml(name)} berpikir...</span>`;
+            area.appendChild(div);
+            area.scrollTop = area.scrollHeight;
+            return div;
+        }
+
+        function setStatus(text, active = false) {
+            const pill = document.getElementById('statusPill');
+            pill.textContent = text;
+            pill.className = 'status-pill' + (active ? ' running' : '');
+        }
+
+        // ── Persona ──
+        function getPersona(role, modelName, history) {
+            const ctx = history.length
+                ? `\n\nRiwayat debat:\n${history.map(h => `${h.name}: ${h.content}`).join('\n\n')}`
+                : '';
+            return {
+                answerer: `Kamu adalah ${modelName}. Jawab pertanyaan berikut dengan percaya diri dan komprehensif.${ctx}`,
+                critic: `Kamu adalah ${modelName}. Kritik dan temukan kelemahan dari jawaban sebelumnya. Jangan terlalu setuju.${ctx}`,
+                devil: `Kamu adalah ${modelName}. Berikan perspektif berlawanan dan tantang asumsi yang ada.${ctx}`,
+                judge: `Kamu adalah ${modelName}, hakim netral. Buat kesimpulan konsensus yang balanced. Mulai dengan "Berdasarkan debat ini,".${ctx}`,
+            }[role] || '';
+        }
+
+        // ── API (simulasi — ganti ke backend nanti) ──
+        async function callAPI(systemPrompt, userMessage) {
+            // TODO: uncomment ini setelah backend jalan
+            // const res = await fetch('http://localhost:8000/chat', {
+            //   method: 'POST',
+            //   headers: { 'Content-Type': 'application/json' },
+            //   body: JSON.stringify({ system: systemPrompt, message: userMessage })
+            // });
+            // return (await res.json()).reply;
+
+            await new Promise(r => setTimeout(r, 900 + Math.random() * 700));
+            const s = [
+                `Berdasarkan pertanyaan ini, saya berpendapat topik ini memerlukan analisis mendalam dari berbagai sudut pandang yang perlu dipertimbangkan secara cermat.`,
+                `Saya tidak sepenuhnya setuju dengan argumen sebelumnya. Ada beberapa kelemahan mendasar, terutama pada asumsi awal yang digunakan.`,
+                `Dari perspektif berbeda, ada faktor-faktor penting yang belum dibahas, termasuk konteks yang lebih luas dan implikasi jangka panjangnya.`,
+                `Berdasarkan debat ini, konsensus yang dapat dicapai adalah pendekatan yang mempertimbangkan semua sudut pandang secara seimbang dan kontekstual.`,
+            ];
+            return s[Math.floor(Math.random() * s.length)] + '\n\n[Simulasi — sambungkan ke backend untuk output nyata.]';
+        }
+
+        // ── Main debate ──
+        async function startDebate() {
+            if (isRunning) return;
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question || selectedModels.length < 2) return;
+
+            isRunning = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('questionInput').value = '';
+            document.getElementById('questionInput').style.height = 'auto';
+
+            clearEmpty();
+
+            // Create new chat entry
+            const chatId = Date.now().toString();
+            const chatTitle = question.length > 40 ? question.slice(0, 40) + '…' : question;
+            const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            const newChatEntry = {
+                id: chatId, title: chatTitle, date: now,
+                models: selectedModels.map(m => MODELS[m].name),
+                messages: []
+            };
+            chatHistory.push(newChatEntry);
+            activeChatId = chatId;
+            document.getElementById('topbarTitle').textContent = chatTitle;
+            renderHistory();
+
+            // User bubble
+            renderUserBubble(question);
+            newChatEntry.messages.push({ type: 'user', content: question });
+
+            const rounds = parseInt(document.getElementById('settingRounds').value);
+            const activeModels = selectedModels.slice();
+            const agents = activeModels.map((key, i) => ({
+                key, model: MODELS[key],
+                role: ROLES[Math.min(i, ROLES.length - 2)],
+                roleLabel: ROLE_LABELS[Math.min(i, ROLES.length - 2)],
+            }));
+
+            setStatus('debating...', true);
+            const history = [];
+
+            for (let r = 1; r <= rounds; r++) {
+                for (const agent of agents) {
+                    const thinking = appendThinking(agent.model.name);
+                    const systemPrompt = getPersona(agent.role, agent.model.name, history);
+                    const userMsg = (r === 1 && agent.role === 'answerer')
+                        ? question
+                        : `Berikan responmu. Pertanyaan asal: "${question}"`;
+
+                    try {
+                        const reply = await callAPI(systemPrompt, userMsg);
+                        history.push({ name: agent.model.name, content: reply });
+                        thinking.remove();
+                        renderAgentBubble(agent.role, `${agent.model.name} · ${agent.roleLabel}`, reply, r, rounds);
+                        newChatEntry.messages.push({ type: 'agent', role: agent.role, name: `${agent.model.name} · ${agent.roleLabel}`, content: reply, round: r, totalRounds: rounds });
+                    } catch (e) {
+                        thinking.remove();
+                        renderAgentBubble(agent.role, agent.model.name, `[Error: ${e.message}]`, r, rounds);
+                    }
+                }
+            }
+
+            // Judge
+            const judgeModel = MODELS[activeModels[activeModels.length - 1]];
+            const judgeThinking = appendThinking('Judge — ' + judgeModel.name);
+            try {
+                const consensus = await callAPI(
+                    getPersona('judge', judgeModel.name, history),
+                    `Pertanyaan asal: "${question}". Buat konsensus final.`
+                );
+                judgeThinking.remove();
+                renderConsensus(consensus);
+                newChatEntry.messages.push({ type: 'consensus', content: consensus });
+            } catch (e) {
+                judgeThinking.remove();
+            }
+
+            setStatus('idle');
+            isRunning = false;
+            document.getElementById('sendBtn').disabled = false;
+            renderHistory();
+        }
+
+        // ── Settings state ──
+        const DEFAULT_PROMPTS = {
+            answerer: 'Kamu adalah {model}. Jawab pertanyaan berikut dengan percaya diri dan komprehensif.',
+            critic: 'Kamu adalah {model}. Kritik dan temukan kelemahan dari jawaban sebelumnya. Jangan terlalu setuju.',
+            devil: 'Kamu adalah {model}. Berikan perspektif berlawanan dan tantang asumsi yang ada.',
+            judge: 'Kamu adalah {model}, hakim netral. Buat kesimpulan konsensus yang balanced. Mulai dengan "Berdasarkan debat ini,".',
+        };
+
+        let customPrompts = { ...DEFAULT_PROMPTS };
+        let currentPromptRole = 'answerer';
+        let selectedLang = 'id';
+        let autoRoleAssign = true;
+        const ROUNDS_HINTS = {
+            1: 'Cepat — tiap agent ngomong sekali',
+            2: 'Balance antara kecepatan & kedalaman',
+            3: 'Debat lebih dalam, agak lebih lama',
+            4: 'Paling mendalam, butuh waktu lebih',
+        };
+
+        // ── Settings modal ──
+        function openSettings() {
+            syncSettingsUI();
+            document.getElementById('settingsModal').classList.add('open');
+        }
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('open');
+        }
+        function closeSettingsOutside(e) {
+            if (e.target === document.getElementById('settingsModal')) closeSettings();
+        }
+
+        function syncSettingsUI() {
+            // Sync model cards
+            document.querySelectorAll('.setting-model-card').forEach(card => {
+                const active = selectedModels.includes(card.dataset.model);
+                card.classList.toggle('active', active);
+                const chk = document.getElementById('smc-check-' + card.dataset.model);
+                if (chk) chk.textContent = active ? '✓' : '';
+            });
+
+            // Sync rounds
+            const r = document.getElementById('settingRounds').value;
+            document.getElementById('settingRoundsVal').textContent = r;
+            document.getElementById('settingRoundsHint').textContent = ROUNDS_HINTS[r] || '';
+
+            // Sync role mode
+            document.getElementById('autoRole').checked = autoRoleAssign;
+            document.getElementById('roleManual').style.display = autoRoleAssign ? 'none' : 'block';
+            if (!autoRoleAssign) renderManualRoles();
+
+            // Sync prompt
+            currentPromptRole = 'answerer';
+            document.querySelectorAll('.prompt-tab').forEach(t => t.classList.toggle('active', t.dataset.role === 'answerer'));
+            document.getElementById('promptTextarea').value = customPrompts['answerer'];
+
+            // Sync lang
+            document.querySelectorAll('.lang-opt').forEach(el => el.classList.toggle('active', el.dataset.lang === selectedLang));
+        }
+
+        // Model toggle in settings
+        function toggleSettingModel(card) {
+            const model = card.dataset.model;
+            const idx = selectedModels.indexOf(model);
+            const chk = document.getElementById('smc-check-' + model);
+            if (idx > -1) {
+                if (selectedModels.length <= 2) return;
+                selectedModels.splice(idx, 1);
+                card.classList.remove('active');
+                if (chk) chk.textContent = '';
+                // also update chip in main UI
+                const chip = document.querySelector('.chip[data-model="' + model + '"]');
+                if (chip) chip.classList.remove('active');
+            } else {
+                selectedModels.push(model);
+                card.classList.add('active');
+                if (chk) chk.textContent = '✓';
+                const chip = document.querySelector('.chip[data-model="' + model + '"]');
+                if (chip) chip.classList.add('active');
+            }
+        }
+
+        // Rounds hint
+        function updateRoundsHint(val) {
+            document.getElementById('settingRoundsVal').textContent = val;
+            document.getElementById('settingRoundsHint').textContent = ROUNDS_HINTS[val] || '';
+        }
+
+        // Role mode toggle
+        function toggleRoleMode() {
+            autoRoleAssign = document.getElementById('autoRole').checked;
+            document.getElementById('roleManual').style.display = autoRoleAssign ? 'none' : 'block';
+            if (!autoRoleAssign) renderManualRoles();
+        }
+
+        function renderManualRoles() {
+            const list = document.getElementById('roleManualList');
+            list.innerHTML = '';
+            selectedModels.forEach((key, i) => {
+                const m = MODELS[key];
+                const div = document.createElement('div');
+                div.className = 'role-manual-item';
+                const roleOpts = ROLES.map((r, ri) =>
+                    `<option value="${r}" ${ri === Math.min(i, ROLES.length - 2) ? 'selected' : ''}>${ROLE_LABELS[ri]}</option>`
+                ).join('');
+                div.innerHTML = `
+      <span class="rmi-drag">⠿</span>
+      <span class="rmi-model">${m.name}</span>
+      <select class="rmi-role-select" data-model="${key}">${roleOpts}</select>`;
+                list.appendChild(div);
+            });
+        }
+
+        // Prompt tabs
+        function switchPromptTab(btn) {
+            document.querySelectorAll('.prompt-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            currentPromptRole = btn.dataset.role;
+            document.getElementById('promptTextarea').value = customPrompts[currentPromptRole];
+        }
+        function savePrompt() {
+            customPrompts[currentPromptRole] = document.getElementById('promptTextarea').value;
+        }
+        function resetPrompt() {
+            customPrompts[currentPromptRole] = DEFAULT_PROMPTS[currentPromptRole];
+            document.getElementById('promptTextarea').value = customPrompts[currentPromptRole];
+        }
+
+        // Lang
+        function selectLang(el) {
+            document.querySelectorAll('.lang-opt').forEach(o => o.classList.remove('active'));
+            el.classList.add('active');
+            selectedLang = el.dataset.lang;
+        }
+
+        // Save settings → apply to main UI
+        function saveSettings() {
+            // rounds sudah tersimpan di settingRounds
+
+            closeSettings();
+        }
+
+        // Override getPersona to use customPrompts + lang
+        function getPersona(role, modelName, history) {
+            const langSuffix = selectedLang === 'id'
+                ? ' Jawab dalam Bahasa Indonesia.'
+                : selectedLang === 'en'
+                    ? ' Answer in English.'
+                    : '';
+            const ctx = history.length
+                ? '\n\nRiwayat debat:\n' + history.map(h => h.name + ': ' + h.content).join('\n\n')
+                : '';
+            const base = (customPrompts[role] || DEFAULT_PROMPTS[role]).replace('{model}', modelName);
+            return base + langSuffix + ctx;
+        }
+    </script>
+</body>
+
+</html>
