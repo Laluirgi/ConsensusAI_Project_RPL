@@ -4,1650 +4,968 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Consensus AI</title>
+    <title>Consensus AI — Multi-AI Discussion Platform</title>
+    <meta name="description" content="Platform diskusi multi-AI yang menggabungkan perspektif 5 model AI berbeda untuk menghasilkan jawaban terbaik." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
-        *,
-        *::before,
-        *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --bg: #0f0f0f;
-            --surface: #1a1a1a;
-            --border: #2a2a2a;
-            --muted: #3a3a3a;
-            --text: #e8e8e8;
-            --sub: #888;
+            --bg: #0a0a0a;
+            --surface: rgba(18, 18, 18, 0.75);
+            --surface-solid: #121212;
+            --surface-hover: rgba(30, 30, 30, 0.8);
+            --glass: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.08);
+            --border-hover: rgba(255,255,255,0.15);
+            --text: #f0f0f0;
+            --text-sub: #999;
+            --text-muted: #555;
             --accent: #c8f261;
-            --agent-a: #7dd3fc;
-            --agent-c: #fbbf24;
-            --agent-d: #f472b6;
-            --agent-j: #6ee7b7;
-            --radius: 10px;
+            --accent-dim: rgba(200, 242, 97, 0.08);
+            --accent-glow: rgba(200, 242, 97, 0.2);
+            --danger: #f87171;
+            --ai-gemini: #60a5fa;
+            --ai-llama: #fb923c;
+            --ai-mixtral: #a78bfa;
+            --ai-deepseek: #f472b6;
+            --ai-gemma: #6ee7b7;
+            --radius: 16px;
+            --radius-sm: 10px;
             --font: 'Inter', system-ui, sans-serif;
-            --mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --mono: 'JetBrains Mono', monospace;
+            --transition: 0.2s ease;
         }
 
-        html,
+        html, body { height: 100%; font-family: var(--font); font-size: 14px; line-height: 1.6; color: var(--text); overflow: hidden; }
+
         body {
-            height: 100%;
             background: var(--bg);
-            color: var(--text);
-            font-family: var(--font);
-            font-size: 14px;
-            line-height: 1.6;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 20% 20%, rgba(200, 242, 97, 0.05) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(96, 165, 250, 0.04) 0%, transparent 60%);
         }
 
-        .app {
-            display: grid;
-            grid-template-columns: 220px 1fr;
-            height: 100vh;
-        }
+        /* ══ LAYOUT ══ */
+        .app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; gap: 0; padding: 14px; transition: grid-template-columns 0.3s ease; }
+        .app.sidebar-collapsed { grid-template-columns: 0px 1fr; }
 
-        /* ── Sidebar ── */
+        /* ══ SIDEBAR ══ */
         .sidebar {
-            background: var(--surface);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
+            background: var(--glass);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            margin-right: 10px;
+            transition: opacity 0.3s ease, margin 0.3s ease;
+        }
+        .app.sidebar-collapsed .sidebar { opacity: 0; margin-right: 0; pointer-events: none; border-color: transparent; }
+        .sidebar-top { padding: 22px 20px 18px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); animation: pulseDot 2s ease-in-out infinite; }
+        @keyframes pulseDot { 0%,100% { box-shadow: 0 0 10px var(--accent-glow); } 50% { box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(200,242,97,0.08); } }
+        .logo-text { font-size: 16px; font-weight: 700; letter-spacing: 0.02em; }
+        .logo-text span { color: var(--accent); }
+        .new-chat-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent; color: var(--text-sub); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all var(--transition); }
+        .new-chat-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        .sidebar-section { padding: 0 14px; }
+        .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-muted); padding: 14px 20px 8px; }
+
+        .history-list { flex: 1; overflow-y: auto; padding: 4px 10px; }
+        .history-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); }
+        .history-item:hover { background: rgba(255,255,255,0.04); }
+        .history-item.active { background: var(--accent-dim); border: 1px solid rgba(200,242,97,0.15); }
+        .history-icon { font-size: 14px; color: var(--text-muted); flex-shrink: 0; }
+        .history-item.active .history-icon { color: var(--accent); }
+        .history-text { flex: 1; min-width: 0; }
+        .history-title { font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item.active .history-title { color: var(--text); font-weight: 500; }
+        .history-del { flex-shrink: 0; width: 20px; height: 20px; border-radius: 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 11px; display: none; align-items: center; justify-content: center; }
+        .history-item:hover .history-del { display: flex; }
+        .history-del:hover { color: var(--danger); background: rgba(248,113,113,0.1); }
+        .history-empty { padding: 30px 20px; font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.8; }
+
+        .sidebar-bottom { padding: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+        .sidebar-btn { width: 100%; padding: 10px 14px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text-sub); font-size: 12px; font-family: var(--font); cursor: pointer; text-align: left; transition: all var(--transition); display: flex; align-items: center; gap: 8px; }
+        .sidebar-btn:hover { background: rgba(255,255,255,0.03); color: var(--text); }
+        .sidebar-btn.active-view { border-color: rgba(200,242,97,0.2); color: var(--accent); background: var(--accent-dim); }
+
+        /* ══ MAIN PANEL ══ */
+        .main-panel {
+            background: var(--glass);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            display: flex; flex-direction: column;
             overflow: hidden;
         }
 
-        .sidebar-top {
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
+        /* Topbar */
+        .topbar { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .topbar-left { display: flex; align-items: center; gap: 12px; }
+        .topbar-title { font-size: 13px; font-weight: 500; color: var(--text-sub); max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--accent);
-        }
+        /* Mode toggle - pill style like mockup */
+        .mode-toggle { display: flex; align-items: center; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 24px; padding: 3px; }
+        .mode-btn { padding: 7px 18px; border-radius: 20px; border: none; background: transparent; color: var(--text-sub); font-size: 12px; font-family: var(--font); font-weight: 500; cursor: pointer; transition: all 0.25s ease; white-space: nowrap; }
+        .mode-btn.active { background: var(--accent); color: #0a0a0a; font-weight: 700; box-shadow: 0 2px 12px rgba(200,242,97,0.25); }
+        .mode-btn:not(.active):hover { color: var(--text); }
 
-        .logo-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--accent);
-            animation: pulse-dot 2s ease-in-out infinite;
-        }
+        /* Custom Solo Model Dropdown */
+        .solo-dropdown { position: relative; display: none; }
+        .solo-dropdown.visible { display: block; }
+        .solo-dropdown-trigger { display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: all var(--transition); min-width: 170px; }
+        .solo-dropdown-trigger:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.06); }
+        .solo-dropdown-trigger.open { border-color: var(--accent); background: rgba(200,242,97,0.04); }
+        .solo-trigger-icon { font-size: 14px; flex-shrink: 0; }
+        .solo-trigger-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; }
+        .solo-trigger-arrow { font-size: 10px; color: var(--text-muted); transition: transform 0.2s ease; }
+        .solo-dropdown-trigger.open .solo-trigger-arrow { transform: rotate(180deg); }
+        .solo-dropdown-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 220px; background: var(--surface-solid); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); z-index: 50; display: none; animation: fadeUp 0.15s ease; }
+        .solo-dropdown-menu.open { display: block; }
+        .solo-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); }
+        .solo-dropdown-item:hover { background: rgba(255,255,255,0.04); }
+        .solo-dropdown-item.active { background: var(--accent-dim); border: 1px solid rgba(200,242,97,0.15); }
+        .solo-item-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .solo-item-info { flex: 1; }
+        .solo-item-name { font-size: 12px; font-weight: 600; color: var(--text); }
+        .solo-item-tag { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+        .solo-item-check { font-size: 12px; color: var(--accent); font-weight: 700; opacity: 0; }
+        .solo-dropdown-item.active .solo-item-check { opacity: 1; }
+        .solo-dropdown-item.active .solo-item-name { color: var(--accent); }
 
-        @keyframes pulse-dot {
+        /* Consensus progress */
+        .consensus-progress { padding: 10px 22px; border-bottom: 1px solid var(--border); display: none; flex-shrink: 0; background: rgba(200,242,97,0.02); }
+        .consensus-progress.visible { display: block; }
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .progress-round { font-size: 12px; font-weight: 600; color: var(--text); }
+        .progress-percent { font-size: 13px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+        .progress-bar-track { width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a8e063); border-radius: 4px; transition: width 0.5s ease; width: 0%; }
+        .progress-agents { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+        .progress-agent { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-sub); }
+        .progress-agent-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-            0%,
-            100% {
-                opacity: 1
-            }
+        /* View toggle */
+        .view-toggle-wrap { padding: 6px 22px; border-bottom: 1px solid var(--border); display: none; flex-shrink: 0; }
+        .view-toggle-wrap.visible { display: flex; gap: 6px; }
+        .view-btn { padding: 4px 12px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); font-size: 11px; font-family: var(--font); cursor: pointer; transition: all var(--transition); }
+        .view-btn.active { color: var(--text-sub); background: rgba(255,255,255,0.04); }
 
-            50% {
-                opacity: 0.3
-            }
-        }
+        /* ══ CHAT AREA ══ */
+        .chat-area { flex: 1; overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
+        .chat-area.side-by-side { flex-direction: row; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
 
-        .new-chat-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 7px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--sub);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            transition: border-color 0.15s, color 0.15s;
-            flex-shrink: 0;
-        }
+        .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+        .empty-icon { font-size: 48px; opacity: 0.15; }
+        .empty p { font-size: 13px; color: var(--text-muted); text-align: center; max-width: 280px; line-height: 1.8; }
 
-        .new-chat-btn:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-        }
+        /* SBS columns */
+        .sbs-column { flex: 1; min-width: 200px; max-width: 380px; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: rgba(255,255,255,0.02); display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow-y: auto; }
+        .sbs-column-header { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .sbs-column-icon { font-size: 14px; }
+        .sbs-column-name { font-size: 12px; font-weight: 600; }
+        .sbs-column-status { margin-left: auto; font-size: 11px; }
+        .sbs-column-body { font-size: 13px; line-height: 1.7; }
 
-        .section-label {
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--sub);
-            padding: 12px 16px 6px;
-        }
-
-        /* History list */
-        .history-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 4px 8px;
-        }
-
-        .history-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.12s;
-            min-width: 0;
-        }
-
-        .history-item:hover {
-            background: var(--border);
-        }
-
-        .history-item.active {
-            background: rgba(200, 242, 97, 0.07);
-        }
-
-        .history-icon {
-            font-size: 13px;
-            flex-shrink: 0;
-            color: var(--sub);
-        }
-
-        .history-text {
-            min-width: 0;
-            flex: 1;
-        }
-
-        .history-title {
-            font-size: 12px;
-            color: var(--text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .history-item.active .history-title {
-            color: var(--accent);
-        }
-
-        .history-meta {
-            font-size: 11px;
-            color: var(--sub);
-        }
-
-        .history-del {
-            flex-shrink: 0;
-            width: 18px;
-            height: 18px;
-            border-radius: 4px;
-            border: none;
-            background: transparent;
-            color: var(--sub);
-            cursor: pointer;
-            font-size: 13px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-        }
-
-        .history-item:hover .history-del {
-            display: flex;
-        }
-
-        .history-del:hover {
-            color: #f87171;
-        }
-
-        .history-empty {
-            padding: 20px 16px;
-            font-size: 12px;
-            color: var(--sub);
-            text-align: center;
-            line-height: 1.7;
-        }
-
-        /* ── Main ── */
-        .main {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .topbar {
-            padding: 14px 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
-
-        .topbar-title {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--sub);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 400px;
-        }
-
-        .status-pill {
-            font-size: 11px;
-            padding: 3px 10px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            color: var(--sub);
-            font-family: var(--mono);
-            flex-shrink: 0;
-        }
-
-        .status-pill.running {
-            border-color: var(--accent);
-            color: var(--accent);
-        }
-
-        /* Toggle */
-        .toggle-wrap {
-            padding: 8px 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-
-        .toggle-label {
-            font-size: 12px;
-            color: var(--sub);
-        }
-
-        .toggle {
-            position: relative;
-            width: 32px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-track {
-            position: absolute;
-            inset: 0;
-            background: var(--muted);
-            border-radius: 18px;
-            transition: background 0.2s;
-        }
-
-        .toggle input:checked~.toggle-track {
-            background: var(--accent);
-        }
-
-        .toggle-thumb {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 14px;
-            height: 14px;
-            background: #fff;
-            border-radius: 50%;
-            transition: left 0.2s;
-        }
-
-        .toggle input:checked~.toggle-thumb {
-            left: 16px;
-        }
-
-        /* Chat area */
-        .chat-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            scroll-behavior: smooth;
-        }
-
-        .empty {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            color: var(--sub);
-        }
-
-        .empty-icon {
-            font-size: 28px;
-            opacity: 0.35;
-        }
-
-        .empty p {
-            font-size: 13px;
-            text-align: center;
-            max-width: 220px;
-            line-height: 1.7;
-        }
-
-        /* Bubbles */
-        .bubble {
-            max-width: 680px;
-            width: 100%;
-        }
-
-        .bubble.user {
-            align-self: flex-end;
-        }
-
-        .bubble-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-        }
-
-        .bubble-name {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-
-        .bubble-round {
-            font-size: 11px;
-            color: var(--sub);
-            font-family: var(--mono);
-        }
-
+        /* ══ BUBBLES ══ */
+        .bubble { max-width: 680px; width: 100%; animation: fadeUp 0.25s ease forwards; }
+        .bubble.user { align-self: flex-end; }
+        .bubble-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .bubble-avatar { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .bubble-name { font-size: 12px; font-weight: 600; }
+        .bubble-round { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
         .bubble-body {
-            padding: 12px 16px;
+            padding: 14px 16px;
             border-radius: var(--radius);
             border: 1px solid var(--border);
             background: var(--surface);
-            font-size: 14px;
-            line-height: 1.7;
-            color: var(--text);
-            white-space: pre-wrap;
+            font-size: 13px; line-height: 1.7;
         }
-
         .bubble.user .bubble-body {
-            background: var(--muted);
-            border-color: var(--muted);
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.1);
             border-radius: var(--radius) var(--radius) 4px var(--radius);
         }
 
-        .bubble.answerer .bubble-name {
-            color: var(--agent-a);
-        }
+        /* AI-colored left borders */
+        .bubble.gemini .bubble-body { border-left: 3px solid var(--ai-gemini); }
+        .bubble.gemini .bubble-name { color: var(--ai-gemini); }
+        .bubble.gemini .bubble-avatar { background: rgba(96,165,250,0.15); color: var(--ai-gemini); }
+        .bubble.llama .bubble-body { border-left: 3px solid var(--ai-llama); }
+        .bubble.llama .bubble-name { color: var(--ai-llama); }
+        .bubble.llama .bubble-avatar { background: rgba(251,146,60,0.15); color: var(--ai-llama); }
+        .bubble.mixtral .bubble-body { border-left: 3px solid var(--ai-mixtral); }
+        .bubble.mixtral .bubble-name { color: var(--ai-mixtral); }
+        .bubble.mixtral .bubble-avatar { background: rgba(167,139,250,0.15); color: var(--ai-mixtral); }
+        .bubble.deepseek .bubble-body { border-left: 3px solid var(--ai-deepseek); }
+        .bubble.deepseek .bubble-name { color: var(--ai-deepseek); }
+        .bubble.deepseek .bubble-avatar { background: rgba(244,114,182,0.15); color: var(--ai-deepseek); }
+        .bubble.gemma .bubble-body { border-left: 3px solid var(--ai-gemma); }
+        .bubble.gemma .bubble-name { color: var(--ai-gemma); }
+        .bubble.gemma .bubble-avatar { background: rgba(110,231,183,0.15); color: var(--ai-gemma); }
+        .bubble.planner .bubble-body { border-left: 3px solid var(--accent); background: var(--accent-dim); }
+        .bubble.planner .bubble-name { color: var(--accent); }
+        .bubble.planner .bubble-avatar { background: var(--accent-dim); color: var(--accent); }
 
-        .bubble.answerer .bubble-body {
-            border-left: 2px solid var(--agent-a);
-        }
+        /* Markdown */
+        .md p { margin-bottom: 8px; } .md p:last-child { margin-bottom: 0; }
+        .md ul, .md ol { margin-left: 20px; margin-bottom: 8px; } .md li { margin-bottom: 4px; }
+        .md pre { background: #0d0d0d; padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; margin: 8px 0; border: 1px solid var(--border); }
+        .md code { font-family: var(--mono); font-size: 12px; }
+        .md :not(pre) > code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px; }
+        .md strong { font-weight: 700; color: #fff; }
+        .md h1,.md h2,.md h3 { margin: 12px 0 6px; color: #fff; }
+        .md h1 { font-size: 17px; } .md h2 { font-size: 15px; } .md h3 { font-size: 14px; }
+        .md table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+        .md th,.md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; font-size: 12px; }
+        .md th { background: rgba(255,255,255,0.04); font-weight: 600; }
+        .md blockquote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text-sub); margin: 8px 0; }
 
-        .bubble.critic .bubble-name {
-            color: var(--agent-c);
-        }
+        /* Action buttons */
+        .actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .btn-act { padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); color: var(--text-sub); font-size: 11px; font-family: var(--font); cursor: pointer; transition: all var(--transition); }
+        .btn-act:hover { border-color: var(--border-hover); color: var(--text); background: rgba(255,255,255,0.04); }
+        .btn-act.primary { border-color: rgba(200,242,97,0.25); color: var(--accent); background: var(--accent-dim); }
+        .btn-act.primary:hover { background: var(--accent-glow); }
 
-        .bubble.critic .bubble-body {
-            border-left: 2px solid var(--agent-c);
-        }
+        /* Consensus result */
+        .consensus-wrap { max-width: 680px; width: 100%; border: 1px solid rgba(200,242,97,0.2); border-radius: var(--radius); padding: 18px 20px; background: linear-gradient(135deg, rgba(200,242,97,0.04), rgba(200,242,97,0.01)); animation: fadeUp 0.25s ease; }
+        .consensus-header { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+        .consensus-body { font-size: 13px; line-height: 1.8; }
 
-        .bubble.devil .bubble-name {
-            color: var(--agent-d);
-        }
+        /* Rating */
+        .rating-wrap { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+        .rating-star { font-size: 18px; cursor: pointer; color: var(--text-muted); transition: all var(--transition); filter: grayscale(1); }
+        .rating-star:hover, .rating-star.active { color: #fbbf24; filter: grayscale(0); transform: scale(1.15); }
+        .rating-label { font-size: 11px; color: var(--text-muted); margin-left: 8px; }
 
-        .bubble.devil .bubble-body {
-            border-left: 2px solid var(--agent-d);
-        }
+        /* Thinking */
+        .thinking { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); max-width: 280px; font-size: 12px; color: var(--text-muted); animation: fadeUp 0.2s ease; }
+        .dots { display: flex; gap: 4px; }
+        .dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: dotBounce 1.2s infinite; }
+        .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotBounce { 0%,80%,100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-4px); opacity: 1; } }
 
-        .bubble.judge .bubble-name {
-            color: var(--agent-j);
-        }
-
-        .bubble.judge .bubble-body {
-            border-left: 2px solid var(--agent-j);
-        }
-
-        .consensus-wrap {
-            max-width: 680px;
-            width: 100%;
-            border: 1px solid var(--accent);
-            border-radius: var(--radius);
-            padding: 16px 20px;
-            background: rgba(200, 242, 97, 0.04);
-        }
-
-        .consensus-header {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--accent);
-            margin-bottom: 10px;
-        }
-
-        .consensus-body {
-            font-size: 14px;
-            line-height: 1.8;
-            color: var(--text);
-            white-space: pre-wrap;
-        }
-
-        .thinking {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 16px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            background: var(--surface);
-            max-width: 260px;
-            font-size: 13px;
-            color: var(--sub);
-        }
-
-        .dots {
-            display: flex;
-            gap: 4px;
-        }
-
-        .dots span {
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            background: var(--sub);
-            animation: bounce 1.2s infinite;
-        }
-
-        .dots span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .dots span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes bounce {
-
-            0%,
-            80%,
-            100% {
-                transform: translateY(0);
-                opacity: 0.4
-            }
-
-            40% {
-                transform: translateY(-4px);
-                opacity: 1
-            }
-        }
-
-        /* ── Input area ── */
-        .input-area {
-            padding: 12px 24px 16px;
-            border-top: 1px solid var(--border);
-            flex-shrink: 0;
-        }
+        /* ══ INPUT AREA ══ */
+        .input-area { padding: 12px 22px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .prompt-templates { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+        .prompt-tpl { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); color: var(--text-sub); font-size: 11px; font-family: var(--font); cursor: pointer; transition: all var(--transition); }
+        .prompt-tpl:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .file-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .file-chip { background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; display: flex; align-items: center; gap: 6px; color: var(--text-sub); border: 1px solid var(--border); }
+        .file-chip img { width: 18px; height: 18px; border-radius: 3px; object-fit: cover; }
+        .file-chip-rm { cursor: pointer; color: var(--danger); font-size: 11px; }
 
         .input-row {
-            display: flex;
-            align-items: flex-end;
-            gap: 10px;
-            background: var(--surface);
+            display: flex; align-items: flex-end; gap: 8px;
+            background: rgba(255,255,255,0.03);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 10px 14px;
-            transition: border-color 0.15s;
+            padding: 12px 16px;
+            transition: border-color var(--transition);
         }
+        .input-row:focus-within { border-color: var(--border-hover); }
+        textarea { flex: 1; background: transparent; border: none; outline: none; resize: none; font-family: var(--font); font-size: 14px; color: var(--text); line-height: 1.6; max-height: 120px; min-height: 24px; }
+        textarea::placeholder { color: var(--text-muted); }
+        .input-btn { flex-shrink: 0; width: 34px; height: 34px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all var(--transition); }
+        .attach-btn { background: transparent; color: var(--text-sub); }
+        .attach-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+        .mic-btn { background: transparent; color: var(--text-sub); }
+        .mic-btn:hover { color: var(--text); }
+        .mic-btn.recording { background: var(--danger) !important; color: #fff !important; border-radius: 50%; }
+        .send-btn { background: var(--accent); color: #0a0a0a; font-weight: 800; font-size: 16px; border-radius: var(--radius-sm); box-shadow: 0 2px 12px rgba(200,242,97,0.2); }
+        .send-btn:hover { opacity: 0.85; box-shadow: 0 2px 20px rgba(200,242,97,0.35); }
+        .send-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+        .stop-btn { background: var(--danger); color: #fff; font-weight: 800; font-size: 16px; border-radius: var(--radius-sm); box-shadow: 0 2px 12px rgba(248,113,113,0.2); display: none; }
+        .stop-btn:hover { opacity: 0.85; box-shadow: 0 2px 20px rgba(248,113,113,0.35); }
 
-        .input-row:focus-within {
-            border-color: var(--muted);
-        }
+        /* ══ ANIMATIONS ══ */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-        textarea {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            resize: none;
-            font-family: var(--font);
-            font-size: 14px;
-            color: var(--text);
-            line-height: 1.6;
-            max-height: 120px;
-            min-height: 22px;
-        }
+        /* ══ SCROLLBAR ══ */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .history-list::-webkit-scrollbar { width: 8px; }
+        .history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 8px; }
+        .history-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
 
-        textarea::placeholder {
-            color: var(--sub);
-        }
+        /* ══ MODAL ══ */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: var(--surface-solid); border: 1px solid var(--glass-border); border-radius: var(--radius); width: 440px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+        .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .modal-title { font-size: 15px; font-weight: 600; }
+        .modal-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; color: var(--text-sub); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all var(--transition); }
+        .modal-close:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+        .modal-body { flex: 1; overflow-y: auto; padding: 22px; }
+        .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+        .btn-primary { padding: 9px 24px; border-radius: var(--radius-sm); border: none; background: var(--accent); color: #0a0a0a; font-size: 13px; font-weight: 700; font-family: var(--font); cursor: pointer; transition: all var(--transition); box-shadow: 0 2px 12px rgba(200,242,97,0.15); }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { padding: 9px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: transparent; color: var(--text-sub); font-size: 13px; font-family: var(--font); cursor: pointer; }
+        .btn-secondary:hover { border-color: var(--border-hover); color: var(--text); }
 
-        .send-btn {
-            flex-shrink: 0;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            border: none;
-            background: var(--accent);
-            color: #0f0f0f;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.15s;
-        }
+        /* Settings */
+        .setting-section { margin-bottom: 20px; }
+        .setting-label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+        .setting-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+        .model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .model-card { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); position: relative; }
+        .model-card:hover { border-color: var(--border-hover); }
+        .model-card.active { border-color: var(--accent); background: var(--accent-dim); }
+        .model-check { position: absolute; top: 8px; right: 10px; font-size: 11px; color: var(--accent); font-weight: 700; }
+        .model-name { font-size: 12px; font-weight: 500; }
+        .model-tag { font-size: 11px; color: var(--text-muted); font-family: var(--mono); margin-top: 2px; }
 
-        .send-btn:hover {
-            opacity: 0.85;
-        }
+        /* Feedback */
+        .fb-cats { display: flex; gap: 6px; margin-bottom: 14px; }
+        .fb-cat { padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-sub); font-size: 12px; font-family: var(--font); cursor: pointer; transition: all var(--transition); }
+        .fb-cat:hover { border-color: var(--border-hover); color: var(--text); }
+        .fb-cat.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .fb-textarea { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 13px; padding: 12px; resize: vertical; outline: none; min-height: 100px; }
+        .fb-textarea:focus { border-color: var(--border-hover); }
 
-        .send-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-
-
-
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--muted);
-            border-radius: 2px;
-        }
-
-        .debate-hidden .bubble:not(.user) {
-            display: none;
-        }
-
-        .debate-hidden .consensus-wrap {
-            display: flex;
-        }
-
-        @keyframes fadeUp {
-            from {
-                opacity: 0;
-                transform: translateY(6px)
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0)
-            }
-        }
-
-        .fade-in {
-            animation: fadeUp 0.2s ease forwards;
-        }
-
-        /* ── Sidebar bottom ── */
-        .sidebar-bottom {
-            padding: 12px;
-            border-top: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .settings-btn {
-            width: 100%;
-            padding: 8px 12px;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--sub);
-            font-size: 12px;
-            cursor: pointer;
-            text-align: left;
-            transition: border-color 0.15s, color 0.15s;
-        }
-
-        .settings-btn:hover {
-            border-color: var(--muted);
-            color: var(--text);
-        }
-
-        /* ── Modal ── */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.open {
-            display: flex;
-        }
-
-        .modal {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            width: 520px;
-            max-width: 95vw;
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
+        /* ══ LOGIN MODAL ══ */
+        .login-overlay { display: flex; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 200; align-items: center; justify-content: center; }
+        .login-overlay.hidden { display: none; }
+        .login-card {
+            background: var(--surface-solid);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 400px; max-width: 95vw;
+            padding: 0;
+            box-shadow: 0 16px 60px rgba(0,0,0,0.6);
             overflow: hidden;
         }
+        .login-header { padding: 28px 28px 0; text-align: center; }
+        .login-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; }
+        .login-logo-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 14px var(--accent-glow); }
+        .login-logo-text { font-size: 20px; font-weight: 800; }
+        .login-logo-text span { color: var(--accent); }
+        .login-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .login-close { position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; border-radius: 8px; border: none; background: rgba(255,255,255,0.06); color: var(--text-sub); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .login-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .login-body { padding: 24px 28px; }
+        .login-tabs { display: flex; margin-bottom: 20px; background: rgba(255,255,255,0.04); border-radius: var(--radius-sm); padding: 3px; }
+        .login-tab { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-sub); font-size: 13px; font-family: var(--font); font-weight: 500; cursor: pointer; border-radius: 8px; transition: all var(--transition); }
+        .login-tab.active { background: var(--accent); color: #0a0a0a; font-weight: 700; }
+        .login-field { margin-bottom: 14px; }
+        .login-field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-sub); margin-bottom: 6px; }
+        .login-field input { width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 13px; outline: none; transition: border-color var(--transition); }
+        .login-field input:focus { border-color: var(--accent); }
+        .login-submit { width: 100%; padding: 11px; border: none; background: var(--accent); color: #0a0a0a; font-size: 14px; font-weight: 700; font-family: var(--font); border-radius: var(--radius-sm); cursor: pointer; margin-top: 8px; box-shadow: 0 2px 12px rgba(200,242,97,0.2); transition: all var(--transition); }
+        .login-submit:hover { opacity: 0.9; }
+        .login-error { font-size: 12px; color: var(--danger); margin-top: 8px; text-align: center; display: none; }
+        .login-footer { padding: 14px 28px 24px; text-align: center; font-size: 11px; color: var(--text-muted); }
 
-        .modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
+        /* User pill in sidebar */
+        .user-pill { padding: 10px 14px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); }
+        .user-avatar { width: 28px; height: 28px; border-radius: 8px; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-logout { font-size: 11px; color: var(--text-muted); cursor: pointer; border: none; background: none; font-family: var(--font); }
+        .user-logout:hover { color: var(--danger); }
 
-        .modal-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text);
-        }
+        /* Status pill */
+        .status-pill { font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); font-family: var(--mono); }
+        .status-pill.running { border-color: var(--accent); color: var(--accent); }
 
-        .modal-close {
-            width: 26px;
-            height: 26px;
-            border-radius: 6px;
-            border: none;
-            background: transparent;
-            color: var(--sub);
-            cursor: pointer;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        /* ══ ADMIN PANEL ══ */
+        .admin-panel { display: none; flex: 1; overflow-y: auto; padding: 24px 22px; flex-direction: column; gap: 20px; }
+        .admin-panel.visible { display: flex; }
+        .admin-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+        .admin-stat-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+        .admin-stat-icon { font-size: 20px; margin-bottom: 6px; }
+        .admin-stat-value { font-size: 26px; font-weight: 700; font-family: var(--mono); }
+        .admin-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .admin-tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+        .admin-tab { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-sub); font-size: 12px; font-family: var(--font); cursor: pointer; transition: all var(--transition); }
+        .admin-tab:hover { border-color: var(--border-hover); color: var(--text); }
+        .admin-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .admin-section-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+        .admin-fb-list { display: flex; flex-direction: column; gap: 8px; }
+        .admin-fb-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+        .admin-fb-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+        .admin-fb-id { font-size: 11px; font-family: var(--mono); color: var(--text-muted); }
+        .admin-fb-date { font-size: 11px; color: var(--text-muted); }
+        .admin-fb-cat { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .admin-fb-cat.bug { background: rgba(248,113,113,0.15); color: var(--danger); }
+        .admin-fb-cat.saran { background: rgba(251,191,36,0.15); color: #fbbf24; }
+        .admin-fb-cat.lainnya { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        .admin-fb-msg { font-size: 13px; line-height: 1.7; margin-bottom: 8px; }
+        .admin-fb-bottom { display: flex; align-items: center; gap: 8px; }
+        .admin-status-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .admin-status-dot.pending { background: #fbbf24; }
+        .admin-status-dot.in_progress { background: #60a5fa; }
+        .admin-status-dot.done { background: #6ee7b7; }
+        .admin-status-sel { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px; font-family: var(--font); padding: 4px 8px; cursor: pointer; outline: none; }
+        .admin-del-btn { margin-left: auto; background: transparent; border: 1px solid rgba(248,113,113,0.3); border-radius: 6px; color: var(--danger); font-size: 11px; font-family: var(--font); padding: 3px 10px; cursor: pointer; }
+        .admin-del-btn:hover { background: rgba(248,113,113,0.1); }
+        .admin-empty { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+        .admin-rating-list { display: flex; flex-direction: column; gap: 8px; }
+        .admin-rating-item { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; align-items: center; gap: 12px; font-size: 12px; }
 
-        .modal-close:hover {
-            background: var(--border);
-            color: var(--text);
-        }
-
-        .modal-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 4px 0;
-        }
-
-        .setting-section {
-            padding: 18px 20px;
-        }
-
-        .setting-section-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .setting-desc {
-            font-size: 12px;
-            color: var(--sub);
-            margin-bottom: 12px;
-            line-height: 1.5;
-        }
-
-        .setting-desc code {
-            font-family: var(--mono);
-            background: var(--border);
-            padding: 1px 5px;
-            border-radius: 4px;
-        }
-
-        .setting-divider {
-            height: 1px;
-            background: var(--border);
-            margin: 0;
-        }
-
-        /* Model grid */
-        .setting-model-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .setting-model-card {
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            cursor: pointer;
-            transition: border-color 0.15s, background 0.15s;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            position: relative;
-        }
-
-        .setting-model-card:hover {
-            border-color: var(--muted);
-        }
-
-        .setting-model-card.active {
-            border-color: var(--accent);
-            background: rgba(200, 242, 97, 0.05);
-        }
-
-        .smc-check {
-            position: absolute;
-            top: 8px;
-            right: 10px;
-            font-size: 11px;
-            color: var(--accent);
-            font-weight: 700;
-        }
-
-        .smc-name {
-            font-size: 13px;
-            color: var(--text);
-            font-weight: 500;
-        }
-
-        .smc-tag {
-            font-size: 11px;
-            color: var(--sub);
-            font-family: var(--mono);
-        }
-
-        /* Rounds */
-        .setting-rounds-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 6px;
-        }
-
-        .setting-rounds-row input[type=range] {
-            -webkit-appearance: none;
-            flex: 1;
-            height: 2px;
-            background: var(--muted);
-            border-radius: 2px;
-            outline: none;
-        }
-
-        .setting-rounds-row input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 13px;
-            height: 13px;
-            border-radius: 50%;
-            background: var(--accent);
-            cursor: pointer;
-        }
-
-        .setting-rounds-val {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--accent);
-            font-family: var(--mono);
-            min-width: 14px;
-        }
-
-        .setting-rounds-hint {
-            font-size: 11px;
-            color: var(--sub);
-        }
-
-        /* Role toggle */
-        .setting-toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .setting-toggle-label {
-            font-size: 13px;
-            color: var(--text);
-        }
-
-        /* Manual role list */
-        .role-manual-desc {
-            font-size: 11px;
-            color: var(--sub);
-            margin-bottom: 8px;
-        }
-
-        .role-manual-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .role-manual-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: var(--bg);
-        }
-
-        .rmi-drag {
-            color: var(--sub);
-            font-size: 13px;
-            cursor: grab;
-        }
-
-        .rmi-model {
-            font-size: 13px;
-            color: var(--text);
-            flex: 1;
-        }
-
-        .rmi-role {
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            color: var(--sub);
-        }
-
-        .rmi-role-select {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text);
-            font-size: 12px;
-            padding: 3px 6px;
-            cursor: pointer;
-            outline: none;
-        }
-
-        /* Prompt tabs */
-        .prompt-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-
-        .prompt-tab {
-            padding: 5px 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--sub);
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.12s;
-        }
-
-        .prompt-tab:hover {
-            border-color: var(--muted);
-            color: var(--text);
-        }
-
-        .prompt-tab.active {
-            border-color: var(--accent);
-            color: var(--accent);
-            background: rgba(200, 242, 97, 0.06);
-        }
-
-        .prompt-textarea {
-            width: 100%;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-family: var(--mono);
-            font-size: 12px;
-            padding: 10px 12px;
-            resize: vertical;
-            outline: none;
-            line-height: 1.6;
-            margin-bottom: 8px;
-        }
-
-        .prompt-textarea:focus {
-            border-color: var(--muted);
-        }
-
-        .reset-prompt-btn {
-            font-size: 11px;
-            color: var(--sub);
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-        }
-
-        .reset-prompt-btn:hover {
-            color: var(--text);
-        }
-
-        /* Lang */
-        .lang-options {
-            display: flex;
-            gap: 8px;
-        }
-
-        .lang-opt {
-            padding: 6px 14px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            font-size: 12px;
-            color: var(--sub);
-            cursor: pointer;
-            transition: all 0.12s;
-        }
-
-        .lang-opt:hover {
-            border-color: var(--muted);
-            color: var(--text);
-        }
-
-        .lang-opt.active {
-            border-color: var(--accent);
-            color: var(--accent);
-            background: rgba(200, 242, 97, 0.06);
-        }
-
-        /* Modal footer */
-        .modal-footer {
-            padding: 14px 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .btn-save {
-            padding: 7px 20px;
-            border-radius: 8px;
-            border: none;
-            background: var(--accent);
-            color: #0f0f0f;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .btn-save:hover {
-            opacity: 0.85;
-        }
-
-        .btn-cancel {
-            padding: 7px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--sub);
-            font-size: 13px;
-            cursor: pointer;
-        }
-
-        .btn-cancel:hover {
-            border-color: var(--muted);
-            color: var(--text);
+        /* ══ RESPONSIVE ══ */
+        @media (max-width: 768px) {
+            .app { grid-template-columns: 1fr; padding: 0; }
+            .sidebar { display: none; position: fixed; left: 0; top: 0; bottom: 0; width: 290px; z-index: 200; margin: 0; border-radius: 0; }
+            .sidebar.open { display: flex; }
+            .main-panel { border-radius: 0; }
+            .mob-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; }
+            .mob-overlay.open { display: block; }
         }
     </style>
 </head>
 
 <body>
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card" style="position:relative;">
+            <button class="login-close" onclick="dismissLogin()" title="Lihat-lihat dulu">✕</button>
+            <div class="login-header">
+                <div class="login-logo">
+                    <div class="login-logo-dot"></div>
+                    <div class="login-logo-text">Consensus <span>AI</span></div>
+                </div>
+                <div class="login-sub">Multi-AI Discussion Platform</div>
+            </div>
+            <div class="login-body">
+                <div class="login-tabs">
+                    <button class="login-tab active" onclick="switchLoginTab('login')">Masuk</button>
+                    <button class="login-tab" onclick="switchLoginTab('register')">Daftar</button>
+                </div>
+                <div id="loginForm">
+                    <div class="login-field"><label>Username</label><input type="text" id="loginUser" placeholder="Username Anda"></div>
+                    <div class="login-field"><label>Password</label><input type="password" id="loginPass" placeholder="Password Anda" onkeydown="if(event.key==='Enter')doLogin()"></div>
+                    <button class="login-submit" onclick="doLogin()">Masuk</button>
+                    <div class="login-error" id="loginError"></div>
+                </div>
+                <div id="registerForm" style="display:none;">
+                    <div class="login-field"><label>Nama Lengkap</label><input type="text" id="regName" placeholder="Nama lengkap Anda"></div>
+                    <div class="login-field"><label>Username</label><input type="text" id="regUser" placeholder="Buat username"></div>
+                    <div class="login-field"><label>Password</label><input type="password" id="regPass" placeholder="Buat password" onkeydown="if(event.key==='Enter')doRegister()"></div>
+                    <button class="login-submit" onclick="doRegister()">Daftar</button>
+                    <div class="login-error" id="regError"></div>
+                </div>
+            </div>
+            <div class="login-footer">Klik ✕ untuk melihat-lihat terlebih dahulu</div>
+        </div>
+    </div>
+
+    <!-- Login prompt (shown when guest tries to send) -->
+    <div class="modal-overlay" id="loginPromptModal">
+        <div class="modal" style="width:380px;">
+            <div class="modal-header">
+                <span class="modal-title">🔒 Login Diperlukan</span>
+                <button class="modal-close" onclick="closeLoginPrompt()">✕</button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <p style="font-size:13px;color:var(--text-sub);margin-bottom:16px;">Anda harus login terlebih dahulu untuk mengirim pertanyaan ke AI.</p>
+                <button class="btn-primary" onclick="closeLoginPrompt();showLogin();">Masuk / Daftar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile overlay -->
+    <div class="mob-overlay" id="mobOverlay" onclick="closeSidebar()"></div>
 
     <div class="app">
-
-        <!-- ── Sidebar ── -->
-        <aside class="sidebar">
+        <!-- ══ SIDEBAR ══ -->
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-top">
                 <div class="logo">
                     <div class="logo-dot"></div>
-                    Consensus
+                    <div class="logo-text">Consensus <span>AI</span></div>
                 </div>
                 <button class="new-chat-btn" onclick="newChat()" title="Chat baru">+</button>
             </div>
 
-            <div class="section-label">Riwayat Chat</div>
-
+            <div class="sidebar-label">Riwayat Chat</div>
             <div class="history-list" id="historyList">
                 <div class="history-empty" id="historyEmpty">Belum ada riwayat.<br>Mulai chat pertamamu!</div>
             </div>
 
             <div class="sidebar-bottom">
-                <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
+                <button class="sidebar-btn" onclick="openFeedback()">📢 Feedback</button>
+                <button class="sidebar-btn" id="adminToggleBtn" onclick="toggleAdminPanel()">📊 Admin Panel</button>
+                <button class="sidebar-btn" onclick="openSettings()">⚙ Settings</button>
+            </div>
+
+            <div class="user-pill" id="userPill" style="display:none;">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <div class="user-name" id="userName">User</div>
+                </div>
+                <button class="user-logout" onclick="doLogout()">Keluar</button>
             </div>
         </aside>
 
         <!-- Settings Modal -->
-        <div class="modal-overlay" id="settingsModal" onclick="closeSettingsOutside(event)">
+        <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
             <div class="modal">
-                <div class="modal-header">
-                    <span class="modal-title">Settings</span>
-                    <button class="modal-close" onclick="closeSettings()">✕</button>
-                </div>
+                <div class="modal-header"><span class="modal-title">⚙ Settings</span><button class="modal-close" onclick="closeSettings()">✕</button></div>
                 <div class="modal-body">
-
-                    <!-- Models -->
                     <div class="setting-section">
-                        <div class="setting-section-title">Model Agent</div>
-                        <div class="setting-desc">Pilih minimal 2 model yang ikut berdebat.</div>
-                        <div class="setting-model-grid" id="settingModelGrid">
-                            <div class="setting-model-card active" data-model="llama"
-                                onclick="toggleSettingModel(this)">
-                                <div class="smc-check" id="smc-check-llama">✓</div>
-                                <div class="smc-name">LLaMA 3.3</div>
-                                <div class="smc-tag">Groq · Gratis</div>
-                            </div>
-                            <div class="setting-model-card active" data-model="gemini"
-                                onclick="toggleSettingModel(this)">
-                                <div class="smc-check" id="smc-check-gemini">✓</div>
-                                <div class="smc-name">Gemini Flash</div>
-                                <div class="smc-tag">Google · Gratis</div>
-                            </div>
-                            <div class="setting-model-card" data-model="mixtral" onclick="toggleSettingModel(this)">
-                                <div class="smc-check" id="smc-check-mixtral"></div>
-                                <div class="smc-name">Mixtral 8x7B</div>
-                                <div class="smc-tag">Groq · Gratis</div>
-                            </div>
-                            <div class="setting-model-card" data-model="kimi" onclick="toggleSettingModel(this)">
-                                <div class="smc-check" id="smc-check-kimi"></div>
-                                <div class="smc-name">Kimi K2</div>
-                                <div class="smc-tag">Moonshot · Murah</div>
-                            </div>
-                        </div>
+                        <div class="setting-label">Model AI</div>
+                        <div class="setting-desc">Pilih model AI aktif untuk mode Konsensus. Min. 2 model.</div>
+                        <div class="model-grid" id="settingModelGrid"></div>
                     </div>
-
-                    <div class="setting-divider"></div>
-
-                    <!-- Iterasi -->
-                    <div class="setting-section">
-                        <div class="setting-section-title">Iterasi Debat</div>
-                        <div class="setting-desc">Jumlah putaran debat antar agent sebelum konsensus dibuat.</div>
-                        <div class="setting-rounds-row">
-                            <input type="range" min="1" max="4" value="2" id="settingRounds"
-                                oninput="updateRoundsHint(this.value)">
-                            <span class="setting-rounds-val" id="settingRoundsVal">2</span>
-                        </div>
-                        <div class="setting-rounds-hint" id="settingRoundsHint">Balance antara kecepatan & kedalaman
-                        </div>
-                    </div>
-
-                    <div class="setting-divider"></div>
-
-                    <!-- Role Assignment -->
-                    <div class="setting-section">
-                        <div class="setting-section-title">Role Assignment</div>
-                        <div class="setting-desc">Tentukan role tiap agent secara manual atau otomatis.</div>
-                        <div class="setting-toggle-row">
-                            <span class="setting-toggle-label">Auto assign role</span>
-                            <label class="toggle">
-                                <input type="checkbox" id="autoRole" checked onchange="toggleRoleMode()">
-                                <div class="toggle-track"></div>
-                                <div class="toggle-thumb"></div>
-                            </label>
-                        </div>
-                        <div class="role-manual" id="roleManual" style="display:none;">
-                            <div class="role-manual-desc">Urutan dari atas = Answerer → Critic → Devil's Advocate →
-                                Judge.</div>
-                            <div class="role-manual-list" id="roleManualList"></div>
-                        </div>
-                    </div>
-
-                    <div class="setting-divider"></div>
-
-                    <!-- System Prompt -->
-                    <div class="setting-section">
-                        <div class="setting-section-title">System Prompt per Role</div>
-                        <div class="setting-desc">Kustomisasi instruksi tiap role. <code>{model}</code> diganti nama
-                            model otomatis.</div>
-                        <div class="prompt-tabs" id="promptTabs">
-                            <button class="prompt-tab active" data-role="answerer"
-                                onclick="switchPromptTab(this)">Answerer</button>
-                            <button class="prompt-tab" data-role="critic"
-                                onclick="switchPromptTab(this)">Critic</button>
-                            <button class="prompt-tab" data-role="devil" onclick="switchPromptTab(this)">Devil's
-                                Adv.</button>
-                            <button class="prompt-tab" data-role="judge" onclick="switchPromptTab(this)">Judge</button>
-                        </div>
-                        <textarea class="prompt-textarea" id="promptTextarea" rows="4"
-                            oninput="savePrompt()"></textarea>
-                        <button class="reset-prompt-btn" onclick="resetPrompt()">↺ Reset default</button>
-                    </div>
-
-                    <div class="setting-divider"></div>
-
-                    <!-- Bahasa -->
-                    <div class="setting-section">
-                        <div class="setting-section-title">Bahasa Output</div>
-                        <div class="setting-desc">Bahasa yang digunakan agent saat menjawab.</div>
-                        <div class="lang-options">
-                            <div class="lang-opt active" data-lang="id" onclick="selectLang(this)">🇮🇩 Indonesia</div>
-                            <div class="lang-opt" data-lang="en" onclick="selectLang(this)">🇬🇧 English</div>
-                            <div class="lang-opt" data-lang="auto" onclick="selectLang(this)">⚡ Auto</div>
-                        </div>
-                    </div>
-
                 </div>
-                <div class="modal-footer">
-                    <button class="btn-save" onclick="saveSettings()">Simpan</button>
-                    <button class="btn-cancel" onclick="closeSettings()">Batal</button>
-                </div>
+                <div class="modal-footer"><button class="btn-primary" onclick="saveSettings()">Simpan</button><button class="btn-secondary" onclick="closeSettings()">Batal</button></div>
             </div>
         </div>
 
-        <!-- ── Main ── -->
-        <main class="main">
+        <!-- Feedback Modal -->
+        <div class="modal-overlay" id="feedbackModal" onclick="if(event.target===this)closeFeedback()">
+            <div class="modal">
+                <div class="modal-header"><span class="modal-title">📢 Kirim Feedback</span><button class="modal-close" onclick="closeFeedback()">✕</button></div>
+                <div class="modal-body" id="feedbackBody">
+                    <div class="setting-section"><div class="setting-label">Kategori</div>
+                        <div class="fb-cats"><button class="fb-cat active" data-cat="bug" onclick="selFbCat(this)">🐛 Bug</button><button class="fb-cat" data-cat="saran" onclick="selFbCat(this)">💡 Saran</button><button class="fb-cat" data-cat="lainnya" onclick="selFbCat(this)">💬 Lainnya</button></div>
+                    </div>
+                    <div class="setting-section"><div class="setting-label">Pesan</div><textarea class="fb-textarea" id="feedbackMsg" placeholder="Jelaskan feedback Anda..." rows="5"></textarea></div>
+                </div>
+                <div class="modal-footer" id="feedbackFooter"><button class="btn-primary" onclick="submitFeedback()">Kirim</button><button class="btn-secondary" onclick="closeFeedback()">Batal</button></div>
+            </div>
+        </div>
 
+        <!-- ══ MAIN PANEL ══ -->
+        <main class="main-panel">
             <div class="topbar">
-                <span class="topbar-title" id="topbarTitle">Chat baru</span>
-                <span class="status-pill" id="statusPill">idle</span>
+                <div class="topbar-left">
+                    <button class="input-btn attach-btn" id="menuBtn" onclick="toggleSidebar()" style="display:none;">☰</button>
+                    <button class="input-btn attach-btn" id="collapseBtn" onclick="toggleDesktopSidebar()" title="Toggle Sidebar" style="font-size:12px; opacity:0.7;">[|\]</button>
+                    <span class="topbar-title" id="topbarTitle">Chat baru</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="mode-toggle">
+                        <button class="mode-btn" id="modeSolo" onclick="setMode('solo')">💬 Solo</button>
+                        <button class="mode-btn active" id="modeConsensus" onclick="setMode('consensus')">🧠 Konsensus</button>
+                    </div>
+                    <div class="solo-dropdown" id="soloDropdown">
+                        <div class="solo-dropdown-trigger" id="soloTrigger" onclick="toggleSoloDropdown()">
+                            <span class="solo-trigger-icon" id="soloTriggerIcon">✦</span>
+                            <span class="solo-trigger-name" id="soloTriggerName">Gemini Flash</span>
+                            <span class="solo-trigger-arrow">▼</span>
+                        </div>
+                        <div class="solo-dropdown-menu" id="soloMenu"></div>
+                    </div>
+                    <span class="status-pill" id="statusPill">idle</span>
+                </div>
             </div>
 
-            <div class="toggle-wrap">
-                <label class="toggle">
-                    <input type="checkbox" id="showDebate" checked onchange="toggleDebateView()">
-                    <div class="toggle-track"></div>
-                    <div class="toggle-thumb"></div>
-                </label>
-                <span class="toggle-label">Tampilkan proses debat</span>
+            <div class="consensus-progress" id="consensusProgress">
+                <div class="progress-header"><span class="progress-round" id="progressRound">Ronde 1/5</span><span class="progress-percent" id="progressPercent">0%</span></div>
+                <div class="progress-bar-track"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+                <div class="progress-agents" id="progressAgents"></div>
+            </div>
+
+            <div class="view-toggle-wrap" id="viewToggleWrap">
+                <button class="view-btn active" id="viewTimeline" onclick="setView('timeline')">📜 Timeline</button>
+                <button class="view-btn" id="viewSbs" onclick="setView('sidebyside')">👁️ Side-by-Side</button>
             </div>
 
             <div class="chat-area" id="chatArea">
                 <div class="empty" id="emptyState">
                     <div class="empty-icon">◎</div>
-                    <p>Pilih model di bawah, lalu ketik pertanyaan untuk memulai debat.</p>
+                    <p>Pilih mode di atas, lalu ketik pertanyaan untuk memulai.</p>
                 </div>
             </div>
 
-            <!-- Input -->
-            <div class="input-area">
+            <div class="admin-panel" id="adminPanel">
+                <div>
+                    <div class="admin-tabs">
+                        <button class="admin-tab active" onclick="switchAdminTab('all')" data-tab="all">📬 Semua</button>
+                        <button class="admin-tab" onclick="switchAdminTab('bug')" data-tab="bug">🐛 Bug</button>
+                        <button class="admin-tab" onclick="switchAdminTab('saran')" data-tab="saran">💡 Saran</button>
+                        <button class="admin-tab" onclick="switchAdminTab('lainnya')" data-tab="lainnya">💬 Lainnya</button>
+                        <button class="admin-tab" onclick="switchAdminTab('ratings')" data-tab="ratings">⭐ Rating</button>
+                    </div>
+                    <div class="admin-stat-grid" id="adminStatsGrid"></div>
+                </div>
+                <div id="adminContent"></div>
+            </div>
+
+            <div class="input-area" id="inputArea">
+                <div class="prompt-templates">
+                    <button class="prompt-tpl" onclick="useTemplate('esai')">📝 Esai</button>
+                    <button class="prompt-tpl" onclick="useTemplate('code')">💻 Code</button>
+                    <button class="prompt-tpl" onclick="useTemplate('analisis')">📊 Analisis</button>
+                    <button class="prompt-tpl" onclick="useTemplate('belajar')">🎓 Belajar</button>
+                </div>
+                <div class="file-preview" id="filePreview"></div>
                 <div class="input-row">
-                    <textarea id="questionInput" placeholder="Ketik pertanyaan..." rows="1" onkeydown="handleKey(event)"
-                        oninput="autoResize(this)"></textarea>
-                    <button class="send-btn" id="sendBtn" onclick="startDebate()">↑</button>
+                    <input type="file" id="fileInput" multiple style="display:none" onchange="handleFiles(event)">
+                    <button class="input-btn attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+                    <textarea id="questionInput" placeholder="Ketik pertanyaan..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)" onfocus="if(!requireLogin()) this.blur();"></textarea>
+                    <button class="input-btn mic-btn" id="micBtn" onclick="toggleMic()" title="Gunakan Suara">🎙️</button>
+                    <button class="input-btn stop-btn" id="stopBtn" onclick="stopGeneration()" title="Hentikan" style="display:none;">⏹</button>
+                    <button class="input-btn send-btn" id="sendBtn" onclick="handleSend()" title="Kirim">➤</button>
                 </div>
-
-
             </div>
-
         </main>
     </div>
 
     <script>
-        // ── Models config ──
-        const MODELS = {
-            llama: { name: 'LLaMA 3.3', tag: 'Groq' },
-            gemini: { name: 'Gemini Flash', tag: 'Google' },
-            mixtral: { name: 'Mixtral 8x7B', tag: 'Groq' },
-            kimi: { name: 'Kimi K2', tag: 'Moonshot' },
-        };
-        const ROLES = ['answerer', 'critic', 'devil', 'judge'];
-        const ROLE_LABELS = ['Answerer', 'Critic', "Devil's Advocate", 'Judge'];
+        // ══════════════════════════════════════════
+        // CONFIG
+        // ══════════════════════════════════════════
+        const MODELS={gemini:{name:'Gemini Flash',tag:'Google · Gratis',color:'#60a5fa',icon:'✦'},llama:{name:'LLaMA 3.3 70B',tag:'Meta · Gratis',color:'#fb923c',icon:'🦙'},llama8b:{name:'LLaMA 3.1 8B',tag:'Meta · Gratis',color:'#a78bfa',icon:'🦙'},gptoss:{name:'GPT-OSS 120B',tag:'OpenAI · Gratis',color:'#f472b6',icon:'◆'},qwen:{name:'Qwen 3 32B',tag:'Alibaba · Gratis',color:'#6ee7b7',icon:'●'}};
+        const TEMPLATES={esai:'Tulis esai tentang [topik] dengan minimal 5 paragraf. Sertakan pendahuluan, pembahasan, dan kesimpulan.',code:'Buatkan program [bahasa pemrograman] untuk [tujuan]. Jelaskan setiap bagian kodenya.',analisis:'Analisis [topik/data] secara mendalam. Berikan data pendukung, insight, dan rekomendasi.',belajar:'Jelaskan konsep [topik] secara detail untuk pemula. Gunakan contoh dan analogi yang mudah dipahami.'};
+        const MAX_ROUNDS=5, API_BASE='http://localhost:8000';
 
-        let selectedModels = ['llama', 'gemini'];
-        let isRunning = false;
+        // ══════════════════════════════════════════
+        // STATE
+        // ══════════════════════════════════════════
+        let currentMode='consensus', soloModel='gemini', selectedModels=['gemini','llama','mixtral','deepseek','gemma'];
+        let isRunning=false, chatHistory=[], activeChatId=null, currentFiles=[], viewMode='timeline';
+        let originalQuestion='', currentPlanText='', lastConsensusText='';
+        let abortController = null;
+        let currentUser=null; // { username, name }
 
-        // ── Chat history state ──
-        // [ { id, title, messages: [ {type, role, name, content, round, totalRounds} ] } ]
-        let chatHistory = [];
-        let activeChatId = null;
+        function stopGeneration() {
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+        }
 
-        // ── Chip toggle ──
-        function toggleChip(el) {
-            const model = el.dataset.model;
-            const idx = selectedModels.indexOf(model);
-            if (idx > -1) {
-                if (selectedModels.length <= 2) return;
-                selectedModels.splice(idx, 1);
-                el.classList.remove('active');
+        // Voice
+        let recognition, isRecording=false;
+        if('webkitSpeechRecognition' in window){recognition=new webkitSpeechRecognition();recognition.continuous=false;recognition.interimResults=false;recognition.lang='id-ID';recognition.onresult=e=>{const t=e.results[0][0].transcript;const inp=document.getElementById('questionInput');inp.value+=(inp.value?' ':'')+t;autoResize(inp);};recognition.onend=()=>{isRecording=false;document.getElementById('micBtn').classList.remove('recording');};}
+
+        // ══════════════════════════════════════════
+        // AUTH
+        // ══════════════════════════════════════════
+        function getUsers(){ try{return JSON.parse(localStorage.getItem('cai_users')||'[]');}catch(e){return [];} }
+        function saveUsers(u){ localStorage.setItem('cai_users',JSON.stringify(u)); }
+
+        function switchLoginTab(tab){
+            document.querySelectorAll('.login-tab').forEach(t=>t.classList.remove('active'));
+            document.querySelector(`.login-tab:${tab==='login'?'first':'last'}-child`).classList.add('active');
+            document.getElementById('loginForm').style.display=tab==='login'?'block':'none';
+            document.getElementById('registerForm').style.display=tab==='register'?'block':'none';
+            document.getElementById('loginError').style.display='none';
+            document.getElementById('regError').style.display='none';
+        }
+
+        function doLogin(){
+            const u=document.getElementById('loginUser').value.trim();
+            const p=document.getElementById('loginPass').value;
+            if(!u||!p){showLoginErr('loginError','Username dan password wajib diisi.');return;}
+            const users=getUsers();
+            const found=users.find(x=>x.username===u&&x.password===p);
+            if(!found){showLoginErr('loginError','Username atau password salah.');return;}
+            currentUser={username:found.username,name:found.name};
+            localStorage.setItem('cai_current',JSON.stringify(currentUser));
+            document.getElementById('loginOverlay').classList.add('hidden');
+            updateUserPill();
+        }
+
+        function doRegister(){
+            const n=document.getElementById('regName').value.trim();
+            const u=document.getElementById('regUser').value.trim();
+            const p=document.getElementById('regPass').value;
+            if(!n||!u||!p){showLoginErr('regError','Semua field wajib diisi.');return;}
+            if(u.length<3){showLoginErr('regError','Username minimal 3 karakter.');return;}
+            if(p.length<4){showLoginErr('regError','Password minimal 4 karakter.');return;}
+            const users=getUsers();
+            if(users.find(x=>x.username===u)){showLoginErr('regError','Username sudah digunakan.');return;}
+            users.push({username:u,name:n,password:p});
+            saveUsers(users);
+            currentUser={username:u,name:n};
+            localStorage.setItem('cai_current',JSON.stringify(currentUser));
+            document.getElementById('loginOverlay').classList.add('hidden');
+            updateUserPill();
+        }
+
+        function showLoginErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display='block';}
+        function dismissLogin(){document.getElementById('loginOverlay').classList.add('hidden');}
+        function showLogin(){document.getElementById('loginOverlay').classList.remove('hidden');}
+        function closeLoginPrompt(){document.getElementById('loginPromptModal').classList.remove('open');}
+
+        function doLogout(){
+            currentUser=null;
+            localStorage.removeItem('cai_current');
+            updateUserPill();
+            showLogin();
+        }
+
+        function updateUserPill(){
+            const pill=document.getElementById('userPill');
+            const adminBtn=document.getElementById('adminToggleBtn');
+            if(currentUser){
+                pill.style.display='flex';
+                document.getElementById('userName').textContent=currentUser.name;
+                document.getElementById('userAvatar').textContent=currentUser.name.charAt(0).toUpperCase();
+                if(currentUser.username === 'admin') adminBtn.style.display='flex';
+                else adminBtn.style.display='none';
             } else {
-                selectedModels.push(model);
-                el.classList.add('active');
+                pill.style.display='none';
+                adminBtn.style.display='none';
             }
         }
 
-        // ── Debate view toggle ──
-        function toggleDebateView() {
-            document.getElementById('chatArea').classList.toggle(
-                'debate-hidden', !document.getElementById('showDebate').checked
-            );
+        function requireLogin(){
+            if(!currentUser){document.getElementById('loginPromptModal').classList.add('open');return false;}
+            return true;
         }
 
-        // ── Textarea ──
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-        }
-        function handleKey(e) {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startDebate(); }
-        }
+        // ══════════════════════════════════════════
+        // INIT
+        // ══════════════════════════════════════════
+        marked.setOptions({highlight:(code,lang)=>{if(typeof hljs!=='undefined'){const language=hljs.getLanguage(lang)?lang:'plaintext';return hljs.highlight(code,{language}).value;}return code;},langPrefix:'hljs language-'});
 
-        // ── New chat ──
-        function newChat() {
-            activeChatId = null;
-            document.getElementById('chatArea').innerHTML =
-                `<div class="empty" id="emptyState">
-       <div class="empty-icon">◎</div>
-       <p>Pilih model di bawah, lalu ketik pertanyaan untuk memulai debat.</p>
-     </div>`;
-            document.getElementById('topbarTitle').textContent = 'Chat baru';
-            renderHistory();
+        function initApp(){
+            try{const s=localStorage.getItem('cai_history');if(s)chatHistory=JSON.parse(s);activeChatId=localStorage.getItem('cai_active');currentMode=localStorage.getItem('cai_mode')||'consensus';const sm=localStorage.getItem('cai_models');if(sm)selectedModels=JSON.parse(sm);const cu=localStorage.getItem('cai_current');if(cu)currentUser=JSON.parse(cu);}catch(e){}
+            setMode(currentMode);populateSoloSelect();
+            if(chatHistory.length>0){renderHistory();if(activeChatId)loadChat(activeChatId);else loadChat(chatHistory[chatHistory.length-1].id);}else{newChat();}
+            if(window.innerWidth<=768)document.getElementById('menuBtn').style.display='flex';
+            window.addEventListener('resize',()=>{document.getElementById('menuBtn').style.display=window.innerWidth<=768?'flex':'none';});
+            updateUserPill();
+            if(currentUser)document.getElementById('loginOverlay').classList.add('hidden');
         }
 
-        // ── Load chat from history ──
-        function loadChat(id) {
-            const chat = chatHistory.find(c => c.id === id);
-            if (!chat) return;
-            activeChatId = id;
-            document.getElementById('topbarTitle').textContent = chat.title;
-
-            const area = document.getElementById('chatArea');
-            area.innerHTML = '';
-            for (const msg of chat.messages) {
-                if (msg.type === 'user') renderUserBubble(msg.content, false);
-                else if (msg.type === 'agent') renderAgentBubble(msg.role, msg.name, msg.content, msg.round, msg.totalRounds, false);
-                else if (msg.type === 'consensus') renderConsensus(msg.content, false);
-            }
-            area.scrollTop = area.scrollHeight;
-            renderHistory();
-        }
-
-        // ── Delete chat ──
-        function deleteChat(e, id) {
-            e.stopPropagation();
-            chatHistory = chatHistory.filter(c => c.id !== id);
-            if (activeChatId === id) newChat();
-            else renderHistory();
-        }
-
-        // ── Render sidebar history ──
-        function renderHistory() {
-            const list = document.getElementById('historyList');
-            const empty = document.getElementById('historyEmpty');
-
-            // Remove old items (keep empty placeholder)
-            list.querySelectorAll('.history-item').forEach(el => el.remove());
-
-            if (chatHistory.length === 0) {
-                if (!document.getElementById('historyEmpty')) {
-                    list.innerHTML = '<div class="history-empty" id="historyEmpty">Belum ada riwayat.<br>Mulai chat pertamamu!</div>';
-                }
-                return;
-            }
-
-            // Hide empty msg
-            const emp = document.getElementById('historyEmpty');
-            if (emp) emp.style.display = 'none';
-
-            // Render newest first
-            [...chatHistory].reverse().forEach(chat => {
-                const div = document.createElement('div');
-                div.className = 'history-item' + (chat.id === activeChatId ? ' active' : '');
-                div.onclick = () => loadChat(chat.id);
-                div.innerHTML = `
-      <span class="history-icon">◎</span>
-      <div class="history-text">
-        <div class="history-title">${escHtml(chat.title)}</div>
-        <div class="history-meta">${chat.date} · ${chat.models.join(', ')}</div>
-      </div>
-      <button class="history-del" onclick="deleteChat(event,'${chat.id}')" title="Hapus">✕</button>`;
-                list.appendChild(div);
+        function populateSoloSelect(){
+            const menu=document.getElementById('soloMenu');
+            if(!menu) return;
+            menu.innerHTML='';
+            Object.entries(MODELS).forEach(([key,m])=>{
+                const div=document.createElement('div');
+                div.className='solo-dropdown-item'+(key===soloModel?' active':'');
+                div.onclick=()=>selectSoloModel(key);
+                div.innerHTML=`<div class="solo-item-icon" style="background:${m.color}25;color:${m.color}">${m.icon}</div><div class="solo-item-info"><div class="solo-item-name">${m.name}</div><div class="solo-item-tag">${m.tag}</div></div><div class="solo-item-check">✓</div>`;
+                menu.appendChild(div);
             });
+            updateSoloTrigger();
         }
-
-        // ── Helpers: render ──
-        function clearEmpty() {
-            const e = document.getElementById('emptyState');
-            if (e) e.remove();
+        function updateSoloTrigger(){
+            const m=MODELS[soloModel];
+            if(m){
+                const icon=document.getElementById('soloTriggerIcon');
+                if(icon){ icon.textContent=m.icon; icon.style.color=m.color; }
+                const name=document.getElementById('soloTriggerName');
+                if(name) name.textContent=m.name;
+            }
         }
-
-        function escHtml(s) {
-            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        function toggleSoloDropdown(e){
+            if(e)e.stopPropagation();
+            const menu=document.getElementById('soloMenu');
+            const trigger=document.getElementById('soloTrigger');
+            if(!menu || !trigger) return;
+            const isOpen=menu.classList.contains('open');
+            if(isOpen){
+                menu.classList.remove('open');
+                trigger.classList.remove('open');
+            }else{
+                menu.classList.add('open');
+                trigger.classList.add('open');
+            }
         }
-
-        function renderUserBubble(content, append = true) {
-            const area = document.getElementById('chatArea');
-            const div = document.createElement('div');
-            div.className = 'bubble user fade-in';
-            div.innerHTML = `<div class="bubble-body">${escHtml(content)}</div>`;
-            area.appendChild(div);
-            if (append) area.scrollTop = area.scrollHeight;
-            return div;
+        function selectSoloModel(key){
+            soloModel=key;
+            populateSoloSelect();
+            toggleSoloDropdown();
         }
+        document.addEventListener('click', (e)=>{
+            const menu=document.getElementById('soloMenu');
+            const trigger=document.getElementById('soloTrigger');
+            if(menu && trigger && !menu.contains(e.target) && !trigger.contains(e.target)){
+                menu.classList.remove('open');
+                trigger.classList.remove('open');
+            }
+        });
+        // ══════════════════════════════════════════
+        // HELPERS
+        // ══════════════════════════════════════════
+        function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+        function md(t){return DOMPurify.sanitize(marked.parse(t));}
+        function save(){try{localStorage.setItem('cai_history',JSON.stringify(chatHistory));if(activeChatId)localStorage.setItem('cai_active',activeChatId);else localStorage.removeItem('cai_active');localStorage.setItem('cai_models',JSON.stringify(selectedModels));}catch(e){}}
+        function clearEmpty(){const e=document.getElementById('emptyState');if(e)e.remove();}
+        function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+        function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();}}
+        function toggleMic(){if(!recognition)return alert('Browser tidak mendukung voice input.');if(isRecording){recognition.stop();}else{recognition.start();isRecording=true;document.getElementById('micBtn').classList.add('recording');}}
+        function setStatus(t,a=false){const p=document.getElementById('statusPill');p.textContent=t;p.className='status-pill'+(a?' running':'');}
+        function useTemplate(k){const inp=document.getElementById('questionInput');inp.value=TEMPLATES[k]||'';inp.focus();autoResize(inp);}
 
-        function renderAgentBubble(role, name, content, round, totalRounds, append = true) {
-            const area = document.getElementById('chatArea');
-            const div = document.createElement('div');
-            div.className = `bubble ${role} fade-in`;
-            div.innerHTML = `
-    <div class="bubble-meta">
-      <span class="bubble-name">${escHtml(name)}</span>
-      ${round ? `<span class="bubble-round">ronde ${round}/${totalRounds}</span>` : ''}
-    </div>
-    <div class="bubble-body">${escHtml(content)}</div>`;
-            area.appendChild(div);
-            if (append) area.scrollTop = area.scrollHeight;
-            return div;
+        // Mode
+        function setMode(m){if(isRunning){alert('Tunggu hingga AI selesai merespon atau klik Hentikan (⏹) terlebih dahulu.');return;}currentMode=m;localStorage.setItem('cai_mode',m);document.getElementById('modeSolo').classList.toggle('active',m==='solo');document.getElementById('modeConsensus').classList.toggle('active',m==='consensus');const sd=document.getElementById('soloDropdown');if(sd)sd.style.display=m==='solo'?'block':'none';}
+        function setView(m){viewMode=m;document.getElementById('viewTimeline').classList.toggle('active',m==='timeline');document.getElementById('viewSbs').classList.toggle('active',m==='sidebyside');document.getElementById('chatArea').classList.toggle('side-by-side',m==='sidebyside');if(m==='sidebyside'&&activeChatId)renderSideBySide();}
+
+        // Files
+        function handleFiles(e){for(let f of e.target.files){const r=new FileReader();r.onload=ev=>{currentFiles.push({name:f.name,mime:f.type||'application/octet-stream',data:ev.target.result.split(',')[1],url:ev.target.result});renderFilePrev();};r.readAsDataURL(f);}e.target.value='';}
+        function renderFilePrev(){const c=document.getElementById('filePreview');c.innerHTML='';currentFiles.forEach((f,i)=>{const d=document.createElement('div');d.className='file-chip';d.innerHTML=f.mime.includes('image')?`<img src="${f.url}"><span>${esc(f.name)}</span><span class="file-chip-rm" onclick="rmFile(${i})">✕</span>`:`<span>📄 ${esc(f.name)}</span><span class="file-chip-rm" onclick="rmFile(${i})">✕</span>`;c.appendChild(d);});}
+        function rmFile(i){currentFiles.splice(i,1);renderFilePrev();}
+
+        // ══════════════════════════════════════════
+        // CHAT MANAGEMENT
+        // ══════════════════════════════════════════
+        function newChat(){if(isRunning){alert('Tunggu hingga AI selesai merespon atau klik Hentikan (⏹) terlebih dahulu.');return;}activeChatId=null;save();document.getElementById('chatArea').innerHTML='<div class="empty" id="emptyState"><div class="empty-icon">◎</div><p>Pilih mode di atas, lalu ketik pertanyaan untuk memulai.</p></div>';document.getElementById('topbarTitle').textContent='Chat baru';document.getElementById('consensusProgress').classList.remove('visible');document.getElementById('viewToggleWrap').classList.remove('visible');renderHistory();closeSidebar();}
+
+        function loadChat(id){if(isRunning){alert('Tunggu hingga AI selesai merespon atau klik Hentikan (⏹) terlebih dahulu.');return;}const chat=chatHistory.find(c=>c.id===id);if(!chat)return;activeChatId=id;save();document.getElementById('topbarTitle').textContent=chat.title;document.getElementById('consensusProgress').classList.remove('visible');const area=document.getElementById('chatArea');area.classList.remove('side-by-side');area.innerHTML='';for(const msg of chat.messages){if(msg.type==='user')renderUserBubble(msg.content,false);else if(msg.type==='agent')renderAgentBubble(msg.modelKey,msg.name,msg.content,msg.round,msg.totalRounds,false);else if(msg.type==='planner')renderPlannerBubble(msg.content,msg.name||'Gemini Flash',false,true);else if(msg.type==='consensus')renderConsensusResult(msg.content,false);}area.scrollTop=area.scrollHeight;renderHistory();const hasDebate=chat.messages.some(m=>m.type==='agent');document.getElementById('viewToggleWrap').classList.toggle('visible',currentMode==='consensus'&&hasDebate);closeSidebar();}
+
+        function deleteChat(e,id){e.stopPropagation();chatHistory=chatHistory.filter(c=>c.id!==id);save();if(activeChatId===id)newChat();else renderHistory();}
+
+        function renderHistory(){const list=document.getElementById('historyList');list.querySelectorAll('.history-item').forEach(el=>el.remove());const emp=document.getElementById('historyEmpty');if(chatHistory.length===0){if(emp)emp.style.display='block';return;}if(emp)emp.style.display='none';[...chatHistory].reverse().forEach(chat=>{const div=document.createElement('div');div.className='history-item'+(chat.id===activeChatId?' active':'');div.onclick=()=>loadChat(chat.id);div.innerHTML=`<span class="history-icon">${chat.mode==='solo'?'💬':'🧠'}</span><div class="history-text"><div class="history-title">${esc(chat.title)}</div></div><button class="history-del" onclick="deleteChat(event,'${chat.id}')">✕</button>`;list.appendChild(div);});}
+
+        // ══════════════════════════════════════════
+        // RENDER
+        // ══════════════════════════════════════════
+        function renderUserBubble(content,scroll=true){const area=document.getElementById('chatArea');const div=document.createElement('div');div.className='bubble user';div.innerHTML=`<div class="bubble-body">${esc(content)}</div>`;area.appendChild(div);if(scroll)area.scrollTop=area.scrollHeight;return div;}
+
+        function renderAgentBubble(modelKey,name,content,round,totalRounds,scroll=true){const area=document.getElementById('chatArea');const div=document.createElement('div');const m=MODELS[modelKey]||{};div.className=`bubble ${modelKey}`;div.innerHTML=`<div class="bubble-header"><div class="bubble-avatar" style="color:${m.color||'#888'}">${m.icon||'●'}</div><span class="bubble-name">${esc(name)}</span>${round?`<span class="bubble-round">ronde ${round}/${totalRounds}</span>`:''}</div><div class="bubble-body md">${md(content)}</div><div class="actions"><button class="btn-act" onclick="navigator.clipboard.writeText(this.closest('.bubble').querySelector('.bubble-body').innerText)">📋 Salin</button></div>`;area.appendChild(div);if(scroll)area.scrollTop=area.scrollHeight;return div;}
+
+        function renderPlannerBubble(content,modelName='Gemini Flash',scroll=true,hideAct=false){const area=document.getElementById('chatArea');const div=document.createElement('div');div.className='bubble planner';div.innerHTML=`<div class="bubble-header"><div class="bubble-avatar">✦</div><span class="bubble-name">${modelName} · Planner</span></div><div class="bubble-body md">${md(content)}</div><div class="actions" id="plannerActions"><button class="btn-act" onclick="navigator.clipboard.writeText(this.closest('.bubble').querySelector('.bubble-body').innerText)">📋 Salin</button>${hideAct?'':`<button class="btn-act primary" onclick="approvePlan()">✅ Setujui & Mulai Diskusi</button><button class="btn-act" onclick="revisePlan()">✏️ Revisi</button>`}</div>`;area.appendChild(div);if(scroll)area.scrollTop=area.scrollHeight;return div;}
+
+        function renderConsensusResult(content,scroll=true){const area=document.getElementById('chatArea');const ex=document.getElementById('finalConsensus');if(ex)ex.remove();lastConsensusText=content;const div=document.createElement('div');div.id='finalConsensus';div.className='consensus-wrap';div.innerHTML=`<div class="consensus-header">◎ Konsensus Final</div><div class="consensus-body md">${md(content)}</div><div class="actions"><button class="btn-act" onclick="navigator.clipboard.writeText(document.querySelector('#finalConsensus .consensus-body').innerText)">📋 Salin</button><button class="btn-act" onclick="downloadFile('txt')">📥 TXT</button><button class="btn-act" onclick="downloadFile('pdf')">📥 PDF</button><button class="btn-act" onclick="downloadFile('docx')">📥 Word</button><button class="btn-act" onclick="downloadFile('md')">📥 Markdown</button><button class="btn-act" onclick="downloadFile('xlsx')">📥 Excel</button><button class="btn-act primary" onclick="requestRevision()">✏️ Minta Revisi</button></div><div class="rating-wrap" id="ratingWrap"><span class="rating-star" onclick="submitRating(1)">⭐</span><span class="rating-star" onclick="submitRating(2)">⭐</span><span class="rating-star" onclick="submitRating(3)">⭐</span><span class="rating-star" onclick="submitRating(4)">⭐</span><span class="rating-star" onclick="submitRating(5)">⭐</span><span class="rating-label" id="ratingLabel">Beri rating</span></div>`;area.appendChild(div);if(scroll)area.scrollTop=area.scrollHeight;}
+
+        function appendThinking(name){const area=document.getElementById('chatArea');const div=document.createElement('div');div.className='thinking';div.innerHTML=`<div class="dots"><span></span><span></span><span></span></div><span>${esc(name)} berpikir...</span>`;area.appendChild(div);area.scrollTop=area.scrollHeight;return div;}
+
+        function renderSideBySide(){const chat=chatHistory.find(c=>c.id===activeChatId);if(!chat)return;const area=document.getElementById('chatArea');area.innerHTML='';const latest={};for(const msg of chat.messages){if(msg.type==='agent'&&msg.modelKey)latest[msg.modelKey]=msg;}Object.entries(MODELS).forEach(([key,model])=>{if(!selectedModels.includes(key))return;const msg=latest[key];const col=document.createElement('div');col.className='sbs-column';col.style.borderTop=`3px solid ${model.color}`;col.innerHTML=`<div class="sbs-column-header"><span class="sbs-column-icon" style="color:${model.color}">${model.icon}</span><span class="sbs-column-name" style="color:${model.color}">${model.name}</span>${msg?`<span class="sbs-column-status">${msg.agreed?'✅':'⏳'}</span>`:''}</div><div class="sbs-column-body md">${msg?md(msg.content):'<span style="color:var(--text-muted)">Belum ada</span>'}</div>`;area.appendChild(col);});const consensus=chat.messages.find(m=>m.type==='consensus');if(consensus)renderConsensusResult(consensus.content,false);}
+
+        // ══════════════════════════════════════════
+        // CONSENSUS PROGRESS
+        // ══════════════════════════════════════════
+        function showProgress(){document.getElementById('consensusProgress').classList.add('visible');}
+        function hideProgress(){document.getElementById('consensusProgress').classList.remove('visible');}
+        function updateProgress(round,total,agreements){document.getElementById('progressRound').textContent=`Ronde ${round}/${total}`;const agreed=Object.values(agreements).filter(v=>v).length;const t=Object.keys(agreements).length||1;const pct=Math.round((agreed/t)*100);document.getElementById('progressPercent').textContent=`${pct}%`;document.getElementById('progressBarFill').style.width=`${pct}%`;const d=document.getElementById('progressAgents');d.innerHTML='';Object.entries(agreements).forEach(([k,v])=>{const m=MODELS[k]||{};d.innerHTML+=`<span class="progress-agent"><span class="progress-agent-dot" style="background:${m.color||'#888'}"></span>${m.name||k} ${v?'✅':'⏳'}</span>`;});}
+
+        // ══════════════════════════════════════════
+        // STREAMING & RATE LIMITING
+        // ══════════════════════════════════════════
+        let rateLimits = {};
+        function handleRateLimit(modelName){
+            rateLimits[modelName] = Date.now() + 60000; // 60 detik
+            alert(`[INFO] Model ${modelName} sedang limit (429). Sistem beralih ke Fallback atau melewati model ini.`);
+            // Update UI
+            if(modelName === MODELS[soloModel]?.name) document.getElementById('soloTriggerName').innerHTML += " <span style='color:var(--danger)'>(Limit)</span>";
+            populateSoloSelect(); // Refresh dropdown UI if open
+            const sc = document.getElementById('settingModelGrid');
+            if(sc){ Object.entries(MODELS).forEach(([k,m])=>{ if(m.name===modelName){ const tag = document.querySelector(`.model-card[data-model="${k}"] .model-tag`); if(tag) tag.innerHTML = "<span style='color:var(--danger)'>⏳ Limit 1 mnt</span>"; } }); }
         }
-
-        function renderConsensus(content, append = true) {
-            const area = document.getElementById('chatArea');
-            const div = document.createElement('div');
-            div.className = 'consensus-wrap fade-in';
-            div.innerHTML = `
-    <div class="consensus-header">◎ Konsensus Final</div>
-    <div class="consensus-body">${escHtml(content)}</div>`;
-            area.appendChild(div);
-            if (append) area.scrollTop = area.scrollHeight;
-        }
-
-        function appendThinking(name) {
-            const area = document.getElementById('chatArea');
-            const div = document.createElement('div');
-            div.className = 'thinking fade-in';
-            div.innerHTML = `<div class="dots"><span></span><span></span><span></span></div><span>${escHtml(name)} berpikir...</span>`;
-            area.appendChild(div);
-            area.scrollTop = area.scrollHeight;
-            return div;
-        }
-
-        function setStatus(text, active = false) {
-            const pill = document.getElementById('statusPill');
-            pill.textContent = text;
-            pill.className = 'status-pill' + (active ? ' running' : '');
-        }
-
-        // ── Persona ──
-        function getPersona(role, modelName, history) {
-            const ctx = history.length
-                ? `\n\nRiwayat debat:\n${history.map(h => `${h.name}: ${h.content}`).join('\n\n')}`
-                : '';
-            return {
-                answerer: `Kamu adalah ${modelName}. Jawab pertanyaan berikut dengan percaya diri dan komprehensif.${ctx}`,
-                critic: `Kamu adalah ${modelName}. Kritik dan temukan kelemahan dari jawaban sebelumnya. Jangan terlalu setuju.${ctx}`,
-                devil: `Kamu adalah ${modelName}. Berikan perspektif berlawanan dan tantang asumsi yang ada.${ctx}`,
-                judge: `Kamu adalah ${modelName}, hakim netral. Buat kesimpulan konsensus yang balanced. Mulai dengan "Berdasarkan debat ini,".${ctx}`,
-            }[role] || '';
-        }
-
-        // ── API (simulasi — ganti ke backend nanti) ──
-        async function callAPI(systemPrompt, userMessage) {
-            // TODO: uncomment ini setelah backend jalan
-            // const res = await fetch('http://localhost:8000/chat', {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({ system: systemPrompt, message: userMessage })
-            // });
-            // return (await res.json()).reply;
-
-            await new Promise(r => setTimeout(r, 900 + Math.random() * 700));
-            const s = [
-                `Berdasarkan pertanyaan ini, saya berpendapat topik ini memerlukan analisis mendalam dari berbagai sudut pandang yang perlu dipertimbangkan secara cermat.`,
-                `Saya tidak sepenuhnya setuju dengan argumen sebelumnya. Ada beberapa kelemahan mendasar, terutama pada asumsi awal yang digunakan.`,
-                `Dari perspektif berbeda, ada faktor-faktor penting yang belum dibahas, termasuk konteks yang lebih luas dan implikasi jangka panjangnya.`,
-                `Berdasarkan debat ini, konsensus yang dapat dicapai adalah pendekatan yang mempertimbangkan semua sudut pandang secara seimbang dan kontekstual.`,
-            ];
-            return s[Math.floor(Math.random() * s.length)] + '\n\n[Simulasi — sambungkan ke backend untuk output nyata.]';
-        }
-
-        // ── Main debate ──
-        async function startDebate() {
-            if (isRunning) return;
-            const question = document.getElementById('questionInput').value.trim();
-            if (!question || selectedModels.length < 2) return;
-
-            isRunning = true;
-            document.getElementById('sendBtn').disabled = true;
-            document.getElementById('questionInput').value = '';
-            document.getElementById('questionInput').style.height = 'auto';
-
-            clearEmpty();
-
-            // Create new chat entry
-            const chatId = Date.now().toString();
-            const chatTitle = question.length > 40 ? question.slice(0, 40) + '…' : question;
-            const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-            const newChatEntry = {
-                id: chatId, title: chatTitle, date: now,
-                models: selectedModels.map(m => MODELS[m].name),
-                messages: []
-            };
-            chatHistory.push(newChatEntry);
-            activeChatId = chatId;
-            document.getElementById('topbarTitle').textContent = chatTitle;
-            renderHistory();
-
-            // User bubble
-            renderUserBubble(question);
-            newChatEntry.messages.push({ type: 'user', content: question });
-
-            const rounds = parseInt(document.getElementById('settingRounds').value);
-            const activeModels = selectedModels.slice();
-            const agents = activeModels.map((key, i) => ({
-                key, model: MODELS[key],
-                role: ROLES[Math.min(i, ROLES.length - 2)],
-                roleLabel: ROLE_LABELS[Math.min(i, ROLES.length - 2)],
-            }));
-
-            setStatus('debating...', true);
-            const history = [];
-
-            for (let r = 1; r <= rounds; r++) {
-                for (const agent of agents) {
-                    const thinking = appendThinking(agent.model.name);
-                    const systemPrompt = getPersona(agent.role, agent.model.name, history);
-                    const userMsg = (r === 1 && agent.role === 'answerer')
-                        ? question
-                        : `Berikan responmu. Pertanyaan asal: "${question}"`;
-
-                    try {
-                        const reply = await callAPI(systemPrompt, userMsg);
-                        history.push({ name: agent.model.name, content: reply });
-                        thinking.remove();
-                        renderAgentBubble(agent.role, `${agent.model.name} · ${agent.roleLabel}`, reply, r, rounds);
-                        newChatEntry.messages.push({ type: 'agent', role: agent.role, name: `${agent.model.name} · ${agent.roleLabel}`, content: reply, round: r, totalRounds: rounds });
-                    } catch (e) {
-                        thinking.remove();
-                        renderAgentBubble(agent.role, agent.model.name, `[Error: ${e.message}]`, r, rounds);
+        async function streamAPI(endpoint,payload,onChunk){
+            abortController = new AbortController();
+            try {
+                const res=await fetch(`${API_BASE}/${endpoint}`,{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify(payload),
+                    signal: abortController.signal
+                });
+                if(!res.ok)throw new Error(await res.text());
+                const reader=res.body.getReader();
+                const decoder=new TextDecoder('utf-8');
+                let buffer='';
+                while(true){
+                    const{done,value}=await reader.read();
+                    if(done)break;
+                    buffer+=decoder.decode(value,{stream:true});
+                    const lines=buffer.split('\n');
+                    buffer=lines.pop();
+                    for(const line of lines){
+                        if(line.trim().startsWith('data:')){
+                            const data=line.substring(line.indexOf('data:')+5).trim();
+                            if(data==='[DONE]'||!data)continue;
+                            try{
+                                const parsed=JSON.parse(data);
+                                if(parsed.rate_limit) handleRateLimit(parsed.model); else if(parsed.content) onChunk(parsed.content);
+                            }catch(e){}
+                        }
                     }
                 }
-            }
-
-            // Judge
-            const judgeModel = MODELS[activeModels[activeModels.length - 1]];
-            const judgeThinking = appendThinking('Judge — ' + judgeModel.name);
-            try {
-                const consensus = await callAPI(
-                    getPersona('judge', judgeModel.name, history),
-                    `Pertanyaan asal: "${question}". Buat konsensus final.`
-                );
-                judgeThinking.remove();
-                renderConsensus(consensus);
-                newChatEntry.messages.push({ type: 'consensus', content: consensus });
-            } catch (e) {
-                judgeThinking.remove();
-            }
-
-            setStatus('idle');
-            isRunning = false;
-            document.getElementById('sendBtn').disabled = false;
-            renderHistory();
-        }
-
-        // ── Settings state ──
-        const DEFAULT_PROMPTS = {
-            answerer: 'Kamu adalah {model}. Jawab pertanyaan berikut dengan percaya diri dan komprehensif.',
-            critic: 'Kamu adalah {model}. Kritik dan temukan kelemahan dari jawaban sebelumnya. Jangan terlalu setuju.',
-            devil: 'Kamu adalah {model}. Berikan perspektif berlawanan dan tantang asumsi yang ada.',
-            judge: 'Kamu adalah {model}, hakim netral. Buat kesimpulan konsensus yang balanced. Mulai dengan "Berdasarkan debat ini,".',
-        };
-
-        let customPrompts = { ...DEFAULT_PROMPTS };
-        let currentPromptRole = 'answerer';
-        let selectedLang = 'id';
-        let autoRoleAssign = true;
-        const ROUNDS_HINTS = {
-            1: 'Cepat — tiap agent ngomong sekali',
-            2: 'Balance antara kecepatan & kedalaman',
-            3: 'Debat lebih dalam, agak lebih lama',
-            4: 'Paling mendalam, butuh waktu lebih',
-        };
-
-        // ── Settings modal ──
-        function openSettings() {
-            syncSettingsUI();
-            document.getElementById('settingsModal').classList.add('open');
-        }
-        function closeSettings() {
-            document.getElementById('settingsModal').classList.remove('open');
-        }
-        function closeSettingsOutside(e) {
-            if (e.target === document.getElementById('settingsModal')) closeSettings();
-        }
-
-        function syncSettingsUI() {
-            // Sync model cards
-            document.querySelectorAll('.setting-model-card').forEach(card => {
-                const active = selectedModels.includes(card.dataset.model);
-                card.classList.toggle('active', active);
-                const chk = document.getElementById('smc-check-' + card.dataset.model);
-                if (chk) chk.textContent = active ? '✓' : '';
-            });
-
-            // Sync rounds
-            const r = document.getElementById('settingRounds').value;
-            document.getElementById('settingRoundsVal').textContent = r;
-            document.getElementById('settingRoundsHint').textContent = ROUNDS_HINTS[r] || '';
-
-            // Sync role mode
-            document.getElementById('autoRole').checked = autoRoleAssign;
-            document.getElementById('roleManual').style.display = autoRoleAssign ? 'none' : 'block';
-            if (!autoRoleAssign) renderManualRoles();
-
-            // Sync prompt
-            currentPromptRole = 'answerer';
-            document.querySelectorAll('.prompt-tab').forEach(t => t.classList.toggle('active', t.dataset.role === 'answerer'));
-            document.getElementById('promptTextarea').value = customPrompts['answerer'];
-
-            // Sync lang
-            document.querySelectorAll('.lang-opt').forEach(el => el.classList.toggle('active', el.dataset.lang === selectedLang));
-        }
-
-        // Model toggle in settings
-        function toggleSettingModel(card) {
-            const model = card.dataset.model;
-            const idx = selectedModels.indexOf(model);
-            const chk = document.getElementById('smc-check-' + model);
-            if (idx > -1) {
-                if (selectedModels.length <= 2) return;
-                selectedModels.splice(idx, 1);
-                card.classList.remove('active');
-                if (chk) chk.textContent = '';
-                // also update chip in main UI
-                const chip = document.querySelector('.chip[data-model="' + model + '"]');
-                if (chip) chip.classList.remove('active');
-            } else {
-                selectedModels.push(model);
-                card.classList.add('active');
-                if (chk) chk.textContent = '✓';
-                const chip = document.querySelector('.chip[data-model="' + model + '"]');
-                if (chip) chip.classList.add('active');
+            } finally {
+                abortController = null;
             }
         }
 
-        // Rounds hint
-        function updateRoundsHint(val) {
-            document.getElementById('settingRoundsVal').textContent = val;
-            document.getElementById('settingRoundsHint').textContent = ROUNDS_HINTS[val] || '';
-        }
+        // ══════════════════════════════════════════
+        // SEND
+        // ══════════════════════════════════════════
+        function handleSend(){if(!requireLogin())return;if(window._revisionMode){window._revisionMode=false;doRevision();return;}if(currentMode==='solo')startSolo();else startPlanning();}
 
-        // Role mode toggle
-        function toggleRoleMode() {
-            autoRoleAssign = document.getElementById('autoRole').checked;
-            document.getElementById('roleManual').style.display = autoRoleAssign ? 'none' : 'block';
-            if (!autoRoleAssign) renderManualRoles();
-        }
+        async function startSolo(){if(isRunning)return;const q=document.getElementById('questionInput').value.trim();if(!q)return;isRunning=true;document.getElementById('sendBtn').disabled=true;document.getElementById('questionInput').value='';document.getElementById('questionInput').style.height='auto';clearEmpty();if(!activeChatId){const id=Date.now().toString();const title=q.length>40?q.slice(0,40)+'…':q;const now=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'short'});chatHistory.push({id,title,date:now,mode:'solo',messages:[]});activeChatId=id;document.getElementById('topbarTitle').textContent=title;renderHistory();}const chat=chatHistory.find(c=>c.id===activeChatId);renderUserBubble(q);chat.messages.push({type:'user',content:q});save();const history=chat.messages.filter(m=>m.type==='user'||m.type==='agent').map(m=>({role:m.type==='user'?'user':'assistant',content:m.content}));const modelKey=soloModel;const model=MODELS[modelKey];const thinking=appendThinking(model.name);setStatus('generating...',true);try{const bubble=renderAgentBubble(modelKey,model.name,'',null,null);const body=bubble.querySelector('.bubble-body');let reply='';const files=[...currentFiles];currentFiles=[];renderFilePrev();try{await streamAPI('solo',{question:q,model:model.name,files,history:history.slice(-10)},chunk=>{reply+=chunk;body.innerHTML=md(reply);document.getElementById('chatArea').scrollTop=document.getElementById('chatArea').scrollHeight;});thinking.remove();chat.messages.push({type:'agent',modelKey,name:model.name,content:reply});save();}catch(e){thinking.remove();const errMsg=e.name==='AbortError'?(reply+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;body.innerHTML=md(errMsg);chat.messages.push({type:'agent',modelKey,name:model.name,content:errMsg});save();}}catch(e){console.error(e);}setStatus('idle');isRunning=false;document.getElementById('sendBtn').disabled=false;}
 
-        function renderManualRoles() {
-            const list = document.getElementById('roleManualList');
-            list.innerHTML = '';
-            selectedModels.forEach((key, i) => {
-                const m = MODELS[key];
-                const div = document.createElement('div');
-                div.className = 'role-manual-item';
-                const roleOpts = ROLES.map((r, ri) =>
-                    `<option value="${r}" ${ri === Math.min(i, ROLES.length - 2) ? 'selected' : ''}>${ROLE_LABELS[ri]}</option>`
-                ).join('');
-                div.innerHTML = `
-      <span class="rmi-drag">⠿</span>
-      <span class="rmi-model">${m.name}</span>
-      <select class="rmi-role-select" data-model="${key}">${roleOpts}</select>`;
-                list.appendChild(div);
-            });
-        }
+        async function startPlanning(){if(isRunning)return;const q=document.getElementById('questionInput').value.trim();if(!q)return;isRunning=true;document.getElementById('sendBtn').disabled=true;document.getElementById('questionInput').value='';document.getElementById('questionInput').style.height='auto';clearEmpty();originalQuestion=q;if(!activeChatId){const id=Date.now().toString();const title=q.length>40?q.slice(0,40)+'…':q;const now=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'short'});chatHistory.push({id,title,date:now,mode:'consensus',messages:[]});activeChatId=id;document.getElementById('topbarTitle').textContent=title;renderHistory();}const chat=chatHistory.find(c=>c.id===activeChatId);currentPlanText='';renderUserBubble(q);chat.messages.push({type:'user',content:q,files:[...currentFiles]});save();setStatus('planning...',true);const activeModels=selectedModels.filter(k=>MODELS[k]);if(activeModels.length===0){alert('Pilih minimal 1 model di Pengaturan AI!');setStatus('idle');isRunning=false;document.getElementById('sendBtn').disabled=false;return;}const plannerModelName=MODELS[activeModels[0]].name;const thinking=appendThinking(`${plannerModelName} (Planner)`);try{const planBubble=renderPlannerBubble('',plannerModelName);const body=planBubble.querySelector('.bubble-body');const files=[...currentFiles];currentFiles=[];renderFilePrev();try{await streamAPI('plan',{question:q,model:plannerModelName,files},chunk=>{currentPlanText+=chunk;body.innerHTML=md(currentPlanText.replace('[SKIP_DEBATE]',''));document.getElementById('chatArea').scrollTop=document.getElementById('chatArea').scrollHeight;});thinking.remove();let skip=currentPlanText.includes('[SKIP_DEBATE]');let finalPlan=currentPlanText.replace('[SKIP_DEBATE]','').trim();body.innerHTML=md(finalPlan);if(skip){const act=planBubble.querySelector('#plannerActions');if(act)act.querySelectorAll('.btn-act').forEach(b=>{if(b.innerText.includes('Setujui')||b.innerText.includes('Revisi'))b.remove();});planBubble.querySelector('.bubble-name').textContent=plannerModelName;}chat.messages.push({type:'planner',content:finalPlan,name:plannerModelName});save();if(skip){setStatus('idle');isRunning=false;document.getElementById('sendBtn').disabled=false;return;}}catch(e){thinking.remove();const errMsg=e.name==='AbortError'?(currentPlanText+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;body.innerHTML=md(errMsg);chat.messages.push({type:'planner',content:errMsg,name:plannerModelName});save();}}catch(e){console.error(e);}setStatus('menunggu persetujuan');isRunning=false;document.getElementById('sendBtn').disabled=false;}
 
-        // Prompt tabs
-        function switchPromptTab(btn) {
-            document.querySelectorAll('.prompt-tab').forEach(t => t.classList.remove('active'));
-            btn.classList.add('active');
-            currentPromptRole = btn.dataset.role;
-            document.getElementById('promptTextarea').value = customPrompts[currentPromptRole];
-        }
-        function savePrompt() {
-            customPrompts[currentPromptRole] = document.getElementById('promptTextarea').value;
-        }
-        function resetPrompt() {
-            customPrompts[currentPromptRole] = DEFAULT_PROMPTS[currentPromptRole];
-            document.getElementById('promptTextarea').value = customPrompts[currentPromptRole];
-        }
+        function revisePlan(){document.getElementById('questionInput').focus();document.getElementById('questionInput').placeholder='Ketik revisi rencana...';}
+        function approvePlan(){const act=document.getElementById('plannerActions');if(act)act.querySelectorAll('.btn-act').forEach(b=>{if(b.innerText.includes('Setujui')||b.innerText.includes('Revisi'))b.remove();});startDebate();}
 
-        // Lang
-        function selectLang(el) {
-            document.querySelectorAll('.lang-opt').forEach(o => o.classList.remove('active'));
-            el.classList.add('active');
-            selectedLang = el.dataset.lang;
-        }
+        async function startDebate(){if(isRunning)return;isRunning=true;setStatus('diskusi...',true);showProgress();document.getElementById('viewToggleWrap').classList.add('visible');const activeModels=selectedModels.filter(k=>MODELS[k]);const chat=chatHistory.find(c=>c.id===activeChatId);const history=[];let round=1;let consensusReached=false;while(round<=MAX_ROUNDS&&!consensusReached&&isRunning){let agreements={};for(const mk of activeModels){if(!isRunning)break;const m=MODELS[mk];const thinking=appendThinking(m.name);let sysPrompt;if(round===1&&history.length===0){sysPrompt=`Kamu adalah ${m.name}. Jawab pertanyaan user secara komprehensif dan detail. Di akhir jawabanmu, tulis [BELUM SETUJU] karena ini jawaban awal yang perlu didiskusikan.`;}else{const ht=history.map(h=>`${h.name} (Ronde ${h.round}): ${h.text}`).join('\n\n');sysPrompt=`Kamu adalah ${m.name}, salah satu dari ${activeModels.length} AI yang berdiskusi.\n\nRiwayat diskusi:\n${ht}\n\nTugasmu:\n1. Baca semua pendapat sebelumnya\n2. Berikan perspektifmu: setujui yang benar, koreksi yang salah, tambahkan yang kurang\n3. Di akhir jawabanmu, WAJIB tulis salah satu:\n   - [SETUJU] jika sudah puas\n   - [BELUM SETUJU] jika masih perlu didiskusikan\n\nBerikan responmu:`;}const userMsg=(round===1&&history.length===0)?`Rencana:\n${currentPlanText}\n\nPertanyaan: ${originalQuestion}`:'Berikan responmu berdasarkan riwayat diskusi.';const userMsgObj=chat.messages.find(m=>m.type==='user');const debateFiles=(round===1&&history.length===0)?(userMsgObj?.files||[]):[];try{const bubble=renderAgentBubble(mk,m.name,'',round,MAX_ROUNDS);const body=bubble.querySelector('.bubble-body');let reply='';try{await streamAPI('debate',{system_prompt:sysPrompt,message:userMsg,model:m.name,files:debateFiles},chunk=>{reply+=chunk;body.innerHTML=md(reply.replace(/\[SETUJU\]/gi,'').replace(/\[BELUM\s*SETUJU\]/gi,''));document.getElementById('chatArea').scrollTop=document.getElementById('chatArea').scrollHeight;});thinking.remove();const isAgreed=/\[SETUJU\]\s*$/i.test(reply.trim())&&!/\[BELUM\s*SETUJU\]\s*$/i.test(reply.trim());const clean=reply.replace(/\[BELUM\s*SETUJU\]\s*$/i,'').replace(/\[SETUJU\]\s*$/i,'').trim();agreements[mk]=isAgreed;body.innerHTML=md(clean);history.push({model:mk,name:m.name,text:clean,round,agreed:isAgreed});chat.messages.push({type:'agent',modelKey:mk,name:m.name,content:clean,round,totalRounds:MAX_ROUNDS,agreed:isAgreed});save();updateProgress(round,MAX_ROUNDS,agreements);if(viewMode==='sidebyside')renderSideBySide();}catch(e){thinking.remove();const errMsg=e.name==='AbortError'?(reply+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;body.innerHTML=md(errMsg);history.push({model:mk,name:m.name,text:errMsg,round,agreed:false});chat.messages.push({type:'agent',modelKey:mk,name:m.name,content:errMsg,round,totalRounds:MAX_ROUNDS,agreed:false});save();agreements[mk]=false;}}catch(e){console.error(e);}}consensusReached=Object.values(agreements).every(v=>v===true);if(!consensusReached)round++;}if(!isRunning){hideProgress();setStatus('idle');document.getElementById('sendBtn').disabled=false;return;}setStatus('membuat konsensus...',true);const ht=history.map(h=>`${h.name} (Ronde ${h.round}): ${h.text}`).join('\n\n');const finalModelName=activeModels.length>0?MODELS[activeModels[0]].name:'Gemini Flash';const finalThink=appendThinking(`${finalModelName} — Final`);try{const finalPrompt=`Kamu adalah ${finalModelName}, penulis jawaban final.\n\nPertanyaan: "${originalQuestion}"\n\nHasil diskusi ${activeModels.length} AI (${consensusReached?'Konsensus TERCAPAI':'Maks ronde tercapai'}):\n${ht}\n\nBuat jawaban FINAL yang:\n1. Menggabungkan semua insight terbaik\n2. Sangat detail, lengkap, terstruktur\n3. Sertakan alasan di setiap poin\n4. Gunakan heading, bullet points, markdown rapi\n5. Kode lengkap jika diminta\n6. Tabel jika ada data\n7. Jawab pertanyaan user secara komprehensif`;let consensusText='';const area=document.getElementById('chatArea');const div=document.createElement('div');div.id='finalConsensus';div.className='consensus-wrap';div.innerHTML=`<div class="consensus-header">◎ Konsensus Final ${consensusReached?'(Disepakati)':'(Batas Ronde)'}</div><div class="consensus-body md"></div><div class="actions" style="display:none" id="consensusActions"><button class="btn-act" onclick="navigator.clipboard.writeText(document.querySelector('#finalConsensus .consensus-body').innerText)">📋 Salin</button><button class="btn-act" onclick="downloadFile('txt')">📥 TXT</button><button class="btn-act" onclick="downloadFile('pdf')">📥 PDF</button><button class="btn-act" onclick="downloadFile('docx')">📥 Word</button><button class="btn-act" onclick="downloadFile('md')">📥 Markdown</button><button class="btn-act" onclick="downloadFile('xlsx')">📥 Excel</button><button class="btn-act primary" onclick="requestRevision()">✏️ Minta Revisi</button></div><div class="rating-wrap" style="display:none" id="ratingWrap2"><span class="rating-star" onclick="submitRating(1)">⭐</span><span class="rating-star" onclick="submitRating(2)">⭐</span><span class="rating-star" onclick="submitRating(3)">⭐</span><span class="rating-star" onclick="submitRating(4)">⭐</span><span class="rating-star" onclick="submitRating(5)">⭐</span><span class="rating-label" id="ratingLabel2">Beri rating</span></div>`;area.appendChild(div);const cBody=div.querySelector('.consensus-body');try{await streamAPI('debate',{system_prompt:finalPrompt,message:`Buat konsensus final: "${originalQuestion}"`,model:finalModelName},chunk=>{consensusText+=chunk;cBody.innerHTML=md(consensusText);area.scrollTop=area.scrollHeight;});finalThink.remove();lastConsensusText=consensusText;document.getElementById('consensusActions').style.display='flex';const rw=document.getElementById('ratingWrap2');if(rw)rw.style.display='flex';chat.messages.push({type:'consensus',content:consensusText});save();}catch(e){finalThink.remove();const errMsg=e.name==='AbortError'?(consensusText+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;cBody.innerHTML=md(errMsg);chat.messages.push({type:'consensus',content:errMsg});save();}}catch(e){console.error(e);}hideProgress();setStatus('idle');isRunning=false;document.getElementById('sendBtn').disabled=false;}
 
-        // Save settings → apply to main UI
-        function saveSettings() {
-            // rounds sudah tersimpan di settingRounds
+        // ══════════════════════════════════════════
+        // REVISION
+        // ══════════════════════════════════════════
+        function requestRevision(){document.getElementById('questionInput').placeholder='Ketik revisi yang Anda inginkan...';document.getElementById('questionInput').focus();window._revisionMode=true;}
 
-            closeSettings();
-        }
+        async function doRevision(){if(isRunning)return;const rev=document.getElementById('questionInput').value.trim();if(!rev||!lastConsensusText)return;isRunning=true;document.getElementById('sendBtn').disabled=true;document.getElementById('questionInput').value='';document.getElementById('questionInput').style.height='auto';document.getElementById('questionInput').placeholder='Ketik pertanyaan...';const chat=chatHistory.find(c=>c.id===activeChatId);renderUserBubble(rev);chat.messages.push({type:'user',content:`[Revisi] ${rev}`});save();const activeModels=selectedModels.filter(k=>MODELS[k]);const finalModelName=activeModels.length>0?MODELS[activeModels[0]].name:'Gemini Flash';const modelName=currentMode==='solo'?MODELS[soloModel].name:finalModelName;const thinking=appendThinking(`${modelName} — Revisi`);setStatus('merevisi...',true);try{const old=document.getElementById('finalConsensus');if(old)old.remove();let revised='';const area=document.getElementById('chatArea');const div=document.createElement('div');div.id='finalConsensus';div.className='consensus-wrap';div.innerHTML=`<div class="consensus-header">◎ Hasil Revisi</div><div class="consensus-body md"></div><div class="actions" style="display:none" id="revisedActions"><button class="btn-act" onclick="navigator.clipboard.writeText(document.querySelector('#finalConsensus .consensus-body').innerText)">📋 Salin</button><button class="btn-act" onclick="downloadFile('txt')">📥 TXT</button><button class="btn-act" onclick="downloadFile('pdf')">📥 PDF</button><button class="btn-act" onclick="downloadFile('docx')">📥 Word</button><button class="btn-act" onclick="downloadFile('md')">📥 Markdown</button><button class="btn-act primary" onclick="requestRevision()">✏️ Revisi Lagi</button></div>`;area.appendChild(div);const body=div.querySelector('.consensus-body');try{await streamAPI('revise',{revision_request:rev,original_answer:lastConsensusText,model:modelName},chunk=>{revised+=chunk;body.innerHTML=md(revised);area.scrollTop=area.scrollHeight;});thinking.remove();lastConsensusText=revised;document.getElementById('revisedActions').style.display='flex';chat.messages.push({type:'consensus',content:revised});save();}catch(e){thinking.remove();const errMsg=e.name==='AbortError'?(revised+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;body.innerHTML=md(errMsg);chat.messages.push({type:'consensus',content:errMsg});save();}}catch(e){console.error(e);}setStatus('idle');isRunning=false;document.getElementById('sendBtn').disabled=false;}
 
-        // Override getPersona to use customPrompts + lang
-        function getPersona(role, modelName, history) {
-            const langSuffix = selectedLang === 'id'
-                ? ' Jawab dalam Bahasa Indonesia.'
-                : selectedLang === 'en'
-                    ? ' Answer in English.'
-                    : '';
-            const ctx = history.length
-                ? '\n\nRiwayat debat:\n' + history.map(h => h.name + ': ' + h.content).join('\n\n')
-                : '';
-            const base = (customPrompts[role] || DEFAULT_PROMPTS[role]).replace('{model}', modelName);
-            return base + langSuffix + ctx;
-        }
+        // ══════════════════════════════════════════
+        // DOWNLOADS
+        // ══════════════════════════════════════════
+        async function downloadFile(fmt){const el=document.querySelector('#finalConsensus .consensus-body');if(!el)return;if(fmt==='pdf'){const c=document.getElementById('finalConsensus');const acts=c.querySelectorAll('.actions,.rating-wrap');acts.forEach(a=>a.style.display='none');await html2pdf().from(c).set({margin:10,filename:'consensus_result.pdf',html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).save();acts.forEach(a=>a.style.display='flex');return;}if(fmt==='txt'){const blob=new Blob([el.innerText],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='consensus_result.txt';a.click();URL.revokeObjectURL(url);return;}try{const res=await fetch(`${API_BASE}/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:lastConsensusText,format:fmt})});const blob=await res.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`consensus_result.${fmt}`;a.click();URL.revokeObjectURL(url);}catch(e){alert('Export gagal: '+e.message);}}
+
+        // ══════════════════════════════════════════
+        // RATING & FEEDBACK
+        // ══════════════════════════════════════════
+        async function submitRating(stars){document.querySelectorAll('.rating-star').forEach((s,i)=>s.classList.toggle('active',i<stars));document.querySelectorAll('.rating-label').forEach(l=>l.textContent=`Rating: ${stars}/5 ✓`);try{await fetch(`${API_BASE}/rate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:activeChatId,rating:stars})});}catch(e){}}
+        let fbCat='bug';
+        function openFeedback(){if(!requireLogin())return;document.getElementById('feedbackModal').classList.add('open');document.getElementById('feedbackBody').innerHTML=`<div class="setting-section"><div class="setting-label">Kategori</div><div class="fb-cats"><button class="fb-cat active" data-cat="bug" onclick="selFbCat(this)">🐛 Bug</button><button class="fb-cat" data-cat="saran" onclick="selFbCat(this)">💡 Saran</button><button class="fb-cat" data-cat="lainnya" onclick="selFbCat(this)">💬 Lainnya</button></div></div><div class="setting-section"><div class="setting-label">Pesan</div><textarea class="fb-textarea" id="feedbackMsg" placeholder="Jelaskan feedback Anda..." rows="5"></textarea></div>`;document.getElementById('feedbackFooter').innerHTML=`<button class="btn-primary" onclick="submitFeedback()">Kirim</button><button class="btn-secondary" onclick="closeFeedback()">Batal</button>`;fbCat='bug';closeSidebar();}
+        function closeFeedback(){document.getElementById('feedbackModal').classList.remove('open');}
+        function selFbCat(el){document.querySelectorAll('.fb-cat').forEach(b=>b.classList.remove('active'));el.classList.add('active');fbCat=el.dataset.cat;}
+        async function submitFeedback(){const msg=document.getElementById('feedbackMsg')?.value?.trim();if(!msg)return alert('Pesan tidak boleh kosong.');try{await fetch(`${API_BASE}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:fbCat,message:msg})});document.getElementById('feedbackBody').innerHTML='<div style="text-align:center;padding:20px;color:var(--accent);">✅ Feedback terkirim!<br>Terima kasih.</div>';document.getElementById('feedbackFooter').innerHTML='<button class="btn-secondary" onclick="closeFeedback()">Tutup</button>';}catch(e){alert('Gagal: '+e.message);}}
+
+        // ══════════════════════════════════════════
+        // SETTINGS
+        // ══════════════════════════════════════════
+        function openSettings(){const grid=document.getElementById('settingModelGrid');grid.innerHTML='';Object.entries(MODELS).forEach(([key,m])=>{const active=selectedModels.includes(key);const card=document.createElement('div');card.className='model-card'+(active?' active':'');card.dataset.model=key;card.onclick=()=>toggleModel(card);card.innerHTML=`<div class="model-check" id="mc-${key}">${active?'✓':''}</div><div class="model-name">${m.icon} ${m.name}</div><div class="model-tag">${m.tag}</div>`;grid.appendChild(card);});document.getElementById('settingsModal').classList.add('open');closeSidebar();}
+        function closeSettings(){document.getElementById('settingsModal').classList.remove('open');}
+        function toggleModel(card){const key=card.dataset.model;const idx=selectedModels.indexOf(key);if(idx>-1){if(selectedModels.length<=2)return;selectedModels.splice(idx,1);card.classList.remove('active');document.getElementById('mc-'+key).textContent='';}else{selectedModels.push(key);card.classList.add('active');document.getElementById('mc-'+key).textContent='✓';}}
+        function saveSettings(){save();closeSettings();}
+
+        // ══════════════════════════════════════════
+        // ADMIN PANEL
+        // ══════════════════════════════════════════
+        let adminVisible=false,adminTab='all',adminFeedbacks=[],adminRatings=[],adminStatsData={};
+        function toggleAdminPanel(){adminVisible=!adminVisible;const panel=document.getElementById('adminPanel');const chat=document.getElementById('chatArea');const input=document.getElementById('inputArea');const btn=document.getElementById('adminToggleBtn');if(adminVisible){panel.classList.add('visible');chat.style.display='none';input.style.display='none';document.getElementById('consensusProgress').classList.remove('visible');document.getElementById('viewToggleWrap').classList.remove('visible');document.getElementById('topbarTitle').textContent='📊 Admin Panel';document.getElementById('statusPill').textContent='admin';btn.classList.add('active-view');loadAdminData();}else{panel.classList.remove('visible');chat.style.display='';input.style.display='';btn.classList.remove('active-view');document.getElementById('statusPill').textContent='idle';if(activeChatId){const c=chatHistory.find(c=>c.id===activeChatId);if(c)document.getElementById('topbarTitle').textContent=c.title;}else document.getElementById('topbarTitle').textContent='Chat baru';}closeSidebar();}
+
+        async function loadAdminData(){try{const[fb,rt,st]=await Promise.all([fetch(`${API_BASE}/admin/feedbacks`),fetch(`${API_BASE}/admin/ratings`),fetch(`${API_BASE}/admin/stats`)]);adminFeedbacks=(await fb.json()).feedbacks||[];adminRatings=(await rt.json()).ratings||[];adminStatsData=await st.json();renderAdminStats();renderAdminContent();}catch(e){document.getElementById('adminContent').innerHTML=`<div class="admin-empty">⚠️ Gagal memuat: ${e.message}</div>`;}}
+
+        function renderAdminStats(){const fb=adminStatsData.feedbacks||{};const rt=adminStatsData.ratings||{total:0,average:0};const total=fb.total||0;const bugC=fb.bug?.count||0;const saranC=fb.saran?.count||0;const pending=(fb.bug?.pending||0)+(fb.saran?.pending||0)+(fb.lainnya?.pending||0);document.getElementById('adminStatsGrid').innerHTML=`<div class="admin-stat-card"><div class="admin-stat-icon">📬</div><div class="admin-stat-value">${total}</div><div class="admin-stat-label">Total</div></div><div class="admin-stat-card"><div class="admin-stat-icon">🐛</div><div class="admin-stat-value">${bugC}</div><div class="admin-stat-label">Bug</div></div><div class="admin-stat-card"><div class="admin-stat-icon">💡</div><div class="admin-stat-value">${saranC}</div><div class="admin-stat-label">Saran</div></div><div class="admin-stat-card"><div class="admin-stat-icon">⏳</div><div class="admin-stat-value">${pending}</div><div class="admin-stat-label">Pending</div></div><div class="admin-stat-card"><div class="admin-stat-icon">⭐</div><div class="admin-stat-value">${rt.average}</div><div class="admin-stat-label">Avg (${rt.total})</div></div>`;}
+
+        function switchAdminTab(tab){adminTab=tab;document.querySelectorAll('.admin-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));renderAdminContent();}
+
+        function renderAdminContent(){const c=document.getElementById('adminContent');if(adminTab==='ratings'){const rt=adminStatsData.ratings||{total:0,average:0};let h=`<div class="admin-section-title">⭐ Rating (${rt.total})</div>`;if(adminRatings.length===0)h+='<div class="admin-empty">Belum ada rating.</div>';else{h+='<div class="admin-rating-list">';adminRatings.forEach(r=>{const d=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short'});h+=`<div class="admin-rating-item"><span>${'⭐'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span><span style="flex:1;font-family:var(--mono);font-size:11px;color:var(--text-muted)">Chat: ${esc(String(r.chat_id))}</span><span style="font-size:11px;color:var(--text-muted)">${d}</span></div>`;});h+='</div>';}c.innerHTML=h;return;}const filtered=adminTab==='all'?adminFeedbacks:adminFeedbacks.filter(f=>f.category===adminTab);let h=`<div class="admin-section-title">📬 ${adminTab==='all'?'Semua':adminTab} (${filtered.length})</div>`;if(filtered.length===0)h+='<div class="admin-empty">📭 Tidak ada feedback.</div>';else{h+='<div class="admin-fb-list">';filtered.forEach(fb=>{const d=new Date(fb.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});const cats={bug:'🐛 Bug',saran:'💡 Saran',lainnya:'💬 Lainnya'};h+=`<div class="admin-fb-card"><div class="admin-fb-top"><span class="admin-fb-id">#${String(fb.id).padStart(3,'0')}</span><span class="admin-fb-date">${d}</span><span class="admin-fb-cat ${fb.category}">${cats[fb.category]||fb.category}</span></div><div class="admin-fb-msg">${esc(fb.message)}</div><div class="admin-fb-bottom"><span class="admin-status-dot ${fb.status}"></span><select class="admin-status-sel" onchange="adminUpdateStatus(${fb.id},this.value)"><option value="pending" ${fb.status==='pending'?'selected':''}>🟡 Pending</option><option value="in_progress" ${fb.status==='in_progress'?'selected':''}>🔵 In Progress</option><option value="done" ${fb.status==='done'?'selected':''}>🟢 Done</option></select><button class="admin-del-btn" onclick="adminDeleteFb(${fb.id})">🗑 Hapus</button></div></div>`;});h+='</div>';}c.innerHTML=h;}
+
+        async function adminUpdateStatus(id,status){try{await fetch(`${API_BASE}/admin/feedbacks/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});await loadAdminData();}catch(e){alert('Error: '+e.message);}}
+        async function adminDeleteFb(id){if(!confirm('Hapus feedback ini?'))return;try{await fetch(`${API_BASE}/admin/feedbacks/${id}`,{method:'DELETE'});await loadAdminData();}catch(e){alert('Error: '+e.message);}}
+
+        // ══════════════════════════════════════════
+        // SIDEBAR MOBILE & DESKTOP
+        // ══════════════════════════════════════════
+        function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('mobOverlay').classList.toggle('open');}
+        function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('mobOverlay').classList.remove('open');}
+        function toggleDesktopSidebar(){document.querySelector('.app').classList.toggle('sidebar-collapsed');}
+
+        // ══════════════════════════════════════════
+        // INIT
+        // ══════════════════════════════════════════
+        initApp();
     </script>
 </body>
-
 </html>
