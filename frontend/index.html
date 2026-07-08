@@ -20,11 +20,11 @@
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         /* Class sementara untuk keperluan export PDF */
-.pdf-export-mode,
-.pdf-export-mode * {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    text-shadow: none !important; /* Menghilangkan efek glow jika ada */
+        .pdf-export-mode,
+        .pdf-export-mode * {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        text-shadow: none !important; /* Menghilangkan efek glow jika ada */
 }
 
         :root {
@@ -437,6 +437,44 @@
             .mob-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; }
             .mob-overlay.open { display: block; }
         }
+
+        /* --- CUSTOM TOAST NOTIFICATION --- */
+    #toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.custom-toast {
+    background: rgba(30, 32, 36, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 4px solid #f39c12; /* Warna orange peringatan */
+    color: #e0e0e0;
+    padding: 16px 20px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    max-width: 350px;
+    animation: slideInToast 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideInToast {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOutToast {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(120%); opacity: 0; }
+}
     </style>
 </head>
 
@@ -897,7 +935,10 @@
         let rateLimits = {};
         function handleRateLimit(modelName){
             rateLimits[modelName] = Date.now() + 60000; // 60 detik
-            alert(`[INFO] Model ${modelName} sedang limit (429). Sistem beralih ke Fallback atau melewati model ini.`);
+            if (pesan.includes("[INFO] Model Gemini Flash sedang limit") || text.includes("429")) {
+            // Baris ini yang bikin muncul pop-up
+            showToast("[INFO] Model Gemini Flash sedang limit (429). Sistem beralih ke Fallback atau melewati model ini.");
+        }
             // Update UI
             if(modelName === MODELS[soloModel]?.name) document.getElementById('soloTriggerName').innerHTML += " <span style='color:var(--danger)'>(Limit)</span>";
             populateSoloSelect(); // Refresh dropdown UI if open
@@ -1154,6 +1195,38 @@ async function startDebate(){if(isRunning)return;
         function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('mobOverlay').classList.toggle('open');}
         function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('mobOverlay').classList.remove('open');}
         function toggleDesktopSidebar(){document.querySelector('.app').classList.toggle('sidebar-collapsed');}
+
+
+        // Fungsi untuk memunculkan notifikasi Toast
+        function showToast(message) {
+    // Cek apakah kontainer toast sudah ada, kalau belum buat baru
+        let container = document.getElementById('toast-container');
+        if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    // Buat elemen notifikasi baru
+    const toast = document.createElement('div');
+    toast.className = 'custom-toast';
+    // Tambahkan icon peringatan di depan pesannya
+    toast.innerHTML = `⚠️ ${message}`; 
+
+    // Masukkan ke layar
+    container.appendChild(toast);
+
+    // Hilangkan otomatis setelah 4 detik
+    setTimeout(() => {
+        toast.style.animation = 'fadeOutToast 0.4s ease forwards';
+        // Hapus elemen dari HTML setelah animasinya selesai
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 400); 
+    }, 4000);
+}
 
         // ══════════════════════════════════════════
         // INIT
