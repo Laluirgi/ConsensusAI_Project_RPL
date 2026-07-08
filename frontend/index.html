@@ -19,6 +19,13 @@
 
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        /* Class sementara untuk keperluan export PDF */
+.pdf-export-mode,
+.pdf-export-mode * {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    text-shadow: none !important; /* Menghilangkan efek glow jika ada */
+}
 
         :root {
             --bg: #0a0a0a;
@@ -623,6 +630,44 @@
     </div>
 
     <script>
+
+       function exportToPDF() {
+    // Sesuaikan ID ini dengan ID tempat teks AI berada di kodemu
+    const container = document.getElementById('hasil-konsensus'); 
+
+    const opt = {
+        margin:       1,
+        filename:     'Hasil_Konsensus_AI.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2,
+            // FITUR RAHASIA: Mengubah warna HANYA untuk hasil PDF, tanpa merusak UI asli
+            onclone: function (clonedDoc) {
+                // Ambil elemen dari dokumen bayangan
+                const target = clonedDoc.getElementById('hasil-konsensus'); // Sesuaikan ID-nya juga
+                
+                if (target) {
+                    // Paksa background target jadi putih
+                    target.style.backgroundColor = '#ffffff';
+                    target.style.color = '#000000';
+                    
+                    // Cari SEMUA elemen di dalam target (paragraf, span, list, dll)
+                    const allChildElements = target.querySelectorAll('*');
+                    allChildElements.forEach(el => {
+                        el.style.color = '#000000'; // Paksa semua teks jadi hitam
+                        el.style.backgroundColor = 'transparent'; // Hapus background gelap di dalam teks
+                        el.style.textShadow = 'none'; // Hapus efek glow/bayangan
+                    });
+                }
+            }
+        },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Langsung proses tanpa perlu menambah/menghapus class CSS lagi
+    html2pdf().set(opt).from(container).save();
+}
+
         // ══════════════════════════════════════════
         // CONFIG
         // ══════════════════════════════════════════
@@ -906,7 +951,84 @@
         function revisePlan(){document.getElementById('questionInput').focus();document.getElementById('questionInput').placeholder='Ketik revisi rencana...';}
         function approvePlan(){const act=document.getElementById('plannerActions');if(act)act.querySelectorAll('.btn-act').forEach(b=>{if(b.innerText.includes('Setujui')||b.innerText.includes('Revisi'))b.remove();});startDebate();}
 
-        async function startDebate(){if(isRunning)return;isRunning=true;setStatus('diskusi...',true);showProgress();document.getElementById('viewToggleWrap').classList.add('visible');const activeModels=selectedModels.filter(k=>MODELS[k]);const chat=chatHistory.find(c=>c.id===activeChatId);const history=[];let round=1;let consensusReached=false;while(round<=MAX_ROUNDS&&!consensusReached&&isRunning){let agreements={};for(const mk of activeModels){if(!isRunning)break;const m=MODELS[mk];const thinking=appendThinking(m.name);let sysPrompt;if(round===1&&history.length===0){sysPrompt=`Kamu adalah ${m.name}. Jawab pertanyaan user secara komprehensif dan detail. Di akhir jawabanmu, tulis [BELUM SETUJU] karena ini jawaban awal yang perlu didiskusikan.`;}else{const ht=history.map(h=>`${h.name} (Ronde ${h.round}): ${h.text}`).join('\n\n');sysPrompt=`Kamu adalah ${m.name}, salah satu dari ${activeModels.length} AI yang berdiskusi.\n\nRiwayat diskusi:\n${ht}\n\nTugasmu:\n1. Baca semua pendapat sebelumnya\n2. Berikan perspektifmu: setujui yang benar, koreksi yang salah, tambahkan yang kurang\n3. Di akhir jawabanmu, WAJIB tulis salah satu:\n   - [SETUJU] jika sudah puas\n   - [BELUM SETUJU] jika masih perlu didiskusikan\n\nBerikan responmu:`;}const userMsg=(round===1&&history.length===0)?`Rencana:\n${currentPlanText}\n\nPertanyaan: ${originalQuestion}`:'Berikan responmu berdasarkan riwayat diskusi.';const userMsgObj=chat.messages.find(m=>m.type==='user');const debateFiles=(round===1&&history.length===0)?(userMsgObj?.files||[]):[];try{const bubble=renderAgentBubble(mk,m.name,'',round,MAX_ROUNDS);const body=bubble.querySelector('.bubble-body');let reply='';try{await streamAPI('debate',{system_prompt:sysPrompt,message:userMsg,model:m.name,files:debateFiles},chunk=>{reply+=chunk;body.innerHTML=md(reply.replace(/\[SETUJU\]/gi,'').replace(/\[BELUM\s*SETUJU\]/gi,''));document.getElementById('chatArea').scrollTop=document.getElementById('chatArea').scrollHeight;});thinking.remove();const isAgreed=/\[SETUJU\]\s*$/i.test(reply.trim())&&!/\[BELUM\s*SETUJU\]\s*$/i.test(reply.trim());const clean=reply.replace(/\[BELUM\s*SETUJU\]\s*$/i,'').replace(/\[SETUJU\]\s*$/i,'').trim();agreements[mk]=isAgreed;body.innerHTML=md(clean);history.push({model:mk,name:m.name,text:clean,round,agreed:isAgreed});chat.messages.push({type:'agent',modelKey:mk,name:m.name,content:clean,round,totalRounds:MAX_ROUNDS,agreed:isAgreed});save();updateProgress(round,MAX_ROUNDS,agreements);if(viewMode==='sidebyside')renderSideBySide();}catch(e){thinking.remove();const errMsg=e.name==='AbortError'?(reply+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;body.innerHTML=md(errMsg);history.push({model:mk,name:m.name,text:errMsg,round,agreed:false});chat.messages.push({type:'agent',modelKey:mk,name:m.name,content:errMsg,round,totalRounds:MAX_ROUNDS,agreed:false});save();agreements[mk]=false;}}catch(e){console.error(e);}}consensusReached=Object.values(agreements).every(v=>v===true);if(!consensusReached)round++;}if(!isRunning){hideProgress();setStatus('idle');document.getElementById('sendBtn').disabled=false;return;}setStatus('membuat konsensus...',true);const ht=history.map(h=>`${h.name} (Ronde ${h.round}): ${h.text}`).join('\n\n');const finalModelName=activeModels.length>0?MODELS[activeModels[0]].name:'Gemini Flash';const finalThink=appendThinking(`${finalModelName} — Final`);try{const finalPrompt=`Kamu adalah ${finalModelName}, penulis jawaban final.\n\nPertanyaan: "${originalQuestion}"\n\nHasil diskusi ${activeModels.length} AI (${consensusReached?'Konsensus TERCAPAI':'Maks ronde tercapai'}):\n${ht}\n\nBuat jawaban FINAL yang:\n1. Menggabungkan semua insight terbaik\n2. Sangat detail, lengkap, terstruktur\n3. Sertakan alasan di setiap poin\n4. Gunakan heading, bullet points, markdown rapi\n5. Kode lengkap jika diminta\n6. Tabel jika ada data\n7. Jawab pertanyaan user secara komprehensif`;let consensusText='';const area=document.getElementById('chatArea');const div=document.createElement('div');div.id='finalConsensus';div.className='consensus-wrap';div.innerHTML=`<div class="consensus-header">◎ Konsensus Final ${consensusReached?'(Disepakati)':'(Batas Ronde)'}</div><div class="consensus-body md"></div><div class="actions" style="display:none" id="consensusActions"><button class="btn-act" onclick="navigator.clipboard.writeText(document.querySelector('#finalConsensus .consensus-body').innerText)">📋 Salin</button><button class="btn-act" onclick="downloadFile('txt')">📥 TXT</button><button class="btn-act" onclick="downloadFile('pdf')">📥 PDF</button><button class="btn-act" onclick="downloadFile('docx')">📥 Word</button><button class="btn-act" onclick="downloadFile('md')">📥 Markdown</button><button class="btn-act" onclick="downloadFile('xlsx')">📥 Excel</button><button class="btn-act primary" onclick="requestRevision()">✏️ Minta Revisi</button></div><div class="rating-wrap" style="display:none" id="ratingWrap2"><span class="rating-star" onclick="submitRating(1)">⭐</span><span class="rating-star" onclick="submitRating(2)">⭐</span><span class="rating-star" onclick="submitRating(3)">⭐</span><span class="rating-star" onclick="submitRating(4)">⭐</span><span class="rating-star" onclick="submitRating(5)">⭐</span><span class="rating-label" id="ratingLabel2">Beri rating</span></div>`;area.appendChild(div);const cBody=div.querySelector('.consensus-body');try{await streamAPI('debate',{system_prompt:finalPrompt,message:`Buat konsensus final: "${originalQuestion}"`,model:finalModelName},chunk=>{consensusText+=chunk;cBody.innerHTML=md(consensusText);area.scrollTop=area.scrollHeight;});finalThink.remove();lastConsensusText=consensusText;document.getElementById('consensusActions').style.display='flex';const rw=document.getElementById('ratingWrap2');if(rw)rw.style.display='flex';chat.messages.push({type:'consensus',content:consensusText});save();}catch(e){finalThink.remove();const errMsg=e.name==='AbortError'?(consensusText+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;cBody.innerHTML=md(errMsg);chat.messages.push({type:'consensus',content:errMsg});save();}}catch(e){console.error(e);}hideProgress();setStatus('idle');isRunning=false;document.getElementById('sendBtn').disabled=false;}
+async function startDebate(){if(isRunning)return;
+    isRunning=true;setStatus('diskusi...',true);
+    showProgress()
+    document.getElementById('viewToggleWrap').classList.add('visible');
+    const activeModels=selectedModels.filter(k=>MODELS[k]);
+    const chat=chatHistory.find(c=>c.id===activeChatId);const history=[];let round=1;let consensusReached=false;while(round<=MAX_ROUNDS&&!consensusReached&&isRunning){let agreements={};for(const mk of activeModels){if(!isRunning)break;const m=MODELS[mk];const thinking=appendThinking(m.name);
+        let sysPrompt;if(round===1&&history.length===0)
+        {
+            sysPrompt=`Kamu adalah ${m.name}. Jawab pertanyaan user secara komprehensif dan detail. Di akhir jawabanmu, tulis [BELUM SETUJU] karena ini jawaban awal yang perlu didiskusikan.`;
+        }else{
+            const ht=history.map(h=>`${h.name} (Ronde ${h.round}): ${h.text}`).join('\n\n');
+            sysPrompt=`Kamu adalah ${m.name}, salah satu dari ${activeModels.length} AI yang berdiskusi.\n\nRiwayat diskusi:\n${ht}\n\nTugasmu:\n1. Baca semua pendapat sebelumnya\n2. Berikan perspektifmu: setujui yang benar, koreksi yang salah, tambahkan yang kurang\n3. Di akhir jawabanmu, WAJIB tulis salah satu:\n   - [SETUJU] jika sudah puas\n   - [BELUM SETUJU] jika masih perlu didiskusikan\n\nBerikan responmu:`;
+        }
+        const userMsg=(round===1&&history.length===0)?`Rencana:\n${currentPlanText}\n\nPertanyaan: ${originalQuestion}`:'Berikan responmu berdasarkan riwayat diskusi.';const userMsgObj=chat.messages.find(m=>m.type==='user');const debateFiles=(round===1&&history.length===0)?(userMsgObj?.files||[]):[];try{const bubble=renderAgentBubble(mk,m.name,'',round,MAX_ROUNDS);const body=bubble.querySelector('.bubble-body');let reply='';
+        try{await streamAPI('debate',{system_prompt:sysPrompt,message:userMsg,model:m.name,files:debateFiles},chunk=>{reply+=chunk;
+            body.innerHTML=md(reply.replace(/\[SETUJU\]/gi,'').replace(/\[BELUM\s*SETUJU\]/gi,''));
+            document.getElementById('chatArea').scrollTop=document.getElementById('chatArea').scrollHeight;
+        });
+        thinking.remove();
+        const isAgreed=/\[SETUJU\]\s*$/i.test(reply.trim())&&!/\[BELUM\s*SETUJU\]\s*$/i.test(reply.trim());
+        const clean=reply.replace(/\[BELUM\s*SETUJU\]\s*$/i,'').replace(/\[SETUJU\]\s*$/i,'').trim();
+        agreements[mk]=isAgreed;
+        body.innerHTML=md(clean);
+        history.push({model:mk,name:m.name,text:clean,round,agreed:isAgreed});
+        chat.messages.push({type:'agent',modelKey:mk,name:m.name,content:clean,round,totalRounds:MAX_ROUNDS,agreed:isAgreed});
+        save();
+        updateProgress(round,MAX_ROUNDS,agreements);if(viewMode==='sidebyside')renderSideBySide();
+    }catch(e){
+        thinking.remove();
+        const errMsg=e.name==='AbortError'?(reply+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;
+        body.innerHTML=md(errMsg);history.push({model:mk,name:m.name,text:errMsg,round,agreed:false});
+        chat.messages.push({type:'agent',modelKey:mk,name:m.name,content:errMsg,round,totalRounds:MAX_ROUNDS,agreed:false});
+        save();
+        agreements[mk]=false;
+    }}catch(e){
+        console.error(e);
+        }}consensusReached=Object.values(agreements).every(v=>v===true);
+        if(!consensusReached)round++;}if(!isRunning){hideProgress();
+            setStatus('idle');
+            document.getElementById('sendBtn').disabled=false;
+            return;
+        }setStatus('membuat konsensus...',true);
+        const ht=history.map(h=>`${h.name} (Ronde ${h.round}): ${h.text}`).join('\n\n');
+        const finalModelName=activeModels.length>0?MODELS[activeModels[0]].name:'Gemini Flash';const finalThink=appendThinking(`${finalModelName} — Final`);
+            try{const finalPrompt=`Kamu adalah ${finalModelName}, penulis jawaban final.\n\nPertanyaan: "${originalQuestion}"\n\nHasil diskusi ${activeModels.length} AI (${consensusReached?'Konsensus TERCAPAI':'Maks ronde tercapai'}):\n${ht}\n\nBuat jawaban FINAL yang:\n1. Menggabungkan semua insight terbaik\n2. Sangat detail, lengkap, terstruktur\n3. Sertakan alasan di setiap poin\n4. Gunakan heading, bullet points, markdown rapi\n5. Kode lengkap jika diminta\n6. Tabel jika ada data\n7. Jawab pertanyaan user secara komprehensif`;
+            let consensusText='';
+            const area=document.getElementById('chatArea');
+            const div=document.createElement('div');div.id='finalConsensus';
+            div.className='consensus-wrap';
+            div.innerHTML=`<div class="consensus-header">◎ Konsensus Final ${consensusReached?'(Disepakati)':'(Batas Ronde)'}
+            </div><div class="consensus-body md"></div><div class="actions" style="display:none" id="consensusActions">
+                <button class="btn-act" onclick="navigator.clipboard.writeText(document.querySelector('#finalConsensus .consensus-body').innerText)">📋 
+                    Salin</button><button class="btn-act" onclick="downloadFile('txt')">📥 TXT</button><button class="btn-act" onclick="downloadFile('pdf')">📥 
+                        PDF</button><button class="btn-act" onclick="downloadFile('docx')">📥
+                         Word</button><button class="btn-act" onclick="downloadFile('md')">📥
+                         Markdown</button><button class="btn-act" onclick="downloadFile('xlsx')">📥 
+                            Excel</button><button class="btn-act primary" onclick="requestRevision()">
+                                ✏️ Minta Revisi</button></div><div class="rating-wrap" style="display:none" id="ratingWrap2"><span class="rating-star" onclick="submitRating(1)">⭐</span><span class="rating-star" onclick="submitRating(2)">⭐</span><span class="rating-star" onclick="submitRating(3)">⭐</span><span class="rating-star" onclick="submitRating(4)">⭐</span><span class="rating-star" onclick="submitRating(5)">⭐</span><span class="rating-label" id="ratingLabel2">Beri rating</span></div>`;
+            area.appendChild(div);
+            const cBody=div.querySelector('.consensus-body')
+            try{await streamAPI('debate',{system_prompt:finalPrompt,message:`Buat konsensus final: "${originalQuestion}"`,model:finalModelName},chunk=>{consensusText+=chunk;cBody.innerHTML=md(consensusText);area.scrollTop=area.scrollHeight;});finalThink.remove();
+            lastConsensusText=consensusText;
+            document.getElementById('consensusActions').style.display='flex';
+            const rw=document.getElementById('ratingWrap2');
+            if(rw)rw.style.display='flex';
+            chat.messages.push({type:'consensus',content:consensusText});
+            save();
+        }
+            catch(e){finalThink.remove();
+                const errMsg=e.name==='AbortError'?(consensusText+'\n\n*(Dibatalkan)*'):`[Error: ${e.message}]`;
+                cBody.innerHTML=md(errMsg);
+                chat.messages.push({type:'consensus',content:errMsg});
+                save();
+            }}catch(e){console.error(e);
+            }hideProgress();
+            setStatus('idle');
+            isRunning=false;document.getElementById('sendBtn').disabled=false;
+        }        
 
         // ══════════════════════════════════════════
         // REVISION
@@ -918,7 +1040,78 @@
         // ══════════════════════════════════════════
         // DOWNLOADS
         // ══════════════════════════════════════════
-        async function downloadFile(fmt){const el=document.querySelector('#finalConsensus .consensus-body');if(!el)return;if(fmt==='pdf'){const c=document.getElementById('finalConsensus');const acts=c.querySelectorAll('.actions,.rating-wrap');acts.forEach(a=>a.style.display='none');await html2pdf().from(c).set({margin:10,filename:'consensus_result.pdf',html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).save();acts.forEach(a=>a.style.display='flex');return;}if(fmt==='txt'){const blob=new Blob([el.innerText],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='consensus_result.txt';a.click();URL.revokeObjectURL(url);return;}try{const res=await fetch(`${API_BASE}/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:lastConsensusText,format:fmt})});const blob=await res.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`consensus_result.${fmt}`;a.click();URL.revokeObjectURL(url);}catch(e){alert('Export gagal: '+e.message);}}
+        async function downloadFile(fmt){const el=document.querySelector('#finalConsensus .consensus-body');
+        if(!el)return;
+        if (fmt === 'pdf') {
+    const c = document.getElementById('finalConsensus');
+    
+    await html2pdf().set({
+        margin: 10,
+        filename: 'consensus_result.pdf',
+        // --- TAMBAHAN BARU: Mengatur aturan potong halaman ---
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        // -----------------------------------------------------
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            onclone: function (clonedDoc) {
+                // Sembunyikan tombol & rating
+                const acts = clonedDoc.querySelectorAll('.actions, .rating-wrap');
+                acts.forEach(a => a.style.display = 'none');
+                
+                // Injeksi CSS
+                const style = clonedDoc.createElement('style');
+                style.innerHTML = `
+                    * {
+                        color: #000000 !important;
+                        -webkit-text-fill-color: #000000 !important;
+                        opacity: 1 !important;
+                        text-shadow: none !important;
+                        filter: none !important;
+                    }
+                    div, p, span, code, pre, ul, li, h1, h2, h3, h4, h5, h6, strong, em, b, i {
+                        background: transparent !important;
+                        background-color: transparent !important;
+                    }
+                    #finalConsensus {
+                        background: #ffffff !important;
+                        background-color: #ffffff !important;
+                    }
+                    /* --- TAMBAHAN BARU: Cegah elemen terpotong di tengah --- */
+                    p, li, ul, h1, h2, h3, h4, h5, h6, pre, code, blockquote {
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        display: block !important;
+                    }
+                    /* -------------------------------------------------------- */
+                `;
+                clonedDoc.head.appendChild(style);
+            }
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(c).save();
+    
+    return;
+}
+    if(fmt==='txt')
+    {
+        const blob=new Blob([el.innerText],{type:'text/plain;charset=utf-8'});
+        const url=URL.createObjectURL(blob);const a=document.createElement('a');
+        a.href=url;a.download='consensus_result.txt';
+        a.click();URL.revokeObjectURL(url);
+        return;
+    }try{
+        const res=await fetch(`${API_BASE}/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:lastConsensusText,format:fmt})});
+        const blob=await res.blob();
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download=`consensus_result.${fmt}`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }catch(e){
+        alert('Export gagal: '+e.message);}
+    }
 
         // ══════════════════════════════════════════
         // RATING & FEEDBACK

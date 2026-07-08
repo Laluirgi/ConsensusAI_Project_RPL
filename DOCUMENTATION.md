@@ -35,7 +35,7 @@
 | **Consensus Phase** | Jawaban final yang menggabungkan semua insight terbaik |
 | **Solo Mode** | Mode alternatif untuk bertanya ke satu AI saja tanpa debat |
 
----
+---venv\Scripts\activate
 
 ## 🛠 Tech Stack
 
