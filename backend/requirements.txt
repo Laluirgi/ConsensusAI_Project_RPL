@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+groq
+google-genai
+python-docx
+openpyxl
+PyPDF2
+aiosqlite
